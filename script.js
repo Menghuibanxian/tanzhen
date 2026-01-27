@@ -1,11 +1,10 @@
 /* ========== Ghost Probe Logic ========== */
 
-const PROD_DOMAIN = 'tz.848880.xyz';
-const IS_CLOUDFLARE_PAGES = window.location.hostname.includes(PROD_DOMAIN);
+const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
 
-// If on Cloudflare, use relative path (proxied by _worker.js).
-// If local, use the full URL (restoring original behavior).
-const API_BASE = IS_CLOUDFLARE_PAGES ? '' : 'https://tanzhen.848880.xyz';
+// If prod (Cloudflare Pages), use relative path (proxied).
+// If local, use full URL.
+const API_BASE = IS_LOCAL ? 'https://tanzhen.848880.xyz' : '';
 
 const API_URL = `${API_BASE}/api/status/batch`;
 const REFRESH_INTERVAL = 10000; // 10 seconds
