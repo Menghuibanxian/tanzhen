@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>梦回半仙の肉壶巢穴</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="favicon.ico">
+</head>
+
+<body>
+
+    <!-- Background Overlay -->
+    <div class="bg-overlay"></div>
+
+    <!-- Loading Screen -->
+    <div id="exia-loader"
+        style="position: fixed; inset: 0; background: #000a14; z-index: 99999; display: flex; align-items: center; justify-content: center; flex-direction: column; transition: opacity 0.6s ease-out;">
+        <!-- Two Eyes Container -->
+        <div class="exia-eyes-wrapper">
+            <div class="exia-eye-box">
+                <div class="exia-eye"></div>
+                <div class="exia-pupil"></div>
+                <div class="exia-inner-pupil"></div>
+            </div>
+            <div class="exia-eye-box">
+                <div class="exia-eye"></div>
+                <div class="exia-pupil"></div>
+                <div class="exia-inner-pupil"></div>
+            </div>
+        </div>
+
+        <!-- Progress Bar -->
+        <div class="exia-progress-container">
+            <div id="exia-progress" class="exia-progress-bar"
+                style="width: 0%; height: 100%; background: #66ffb3; box-shadow: 0 0 10px #66ffb3; transition: width 0.1s linear;">
+            </div>
+        </div>
+
+        <div class="loading-text">肉壶正在准备中 裤子可以先脱了</div>
+    </div>
+
+    <!-- ... (Status Bar and Rest of Content) ... -->
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+    <script>
+        // 强制至少3秒，最多5秒 + 进度条
+        (function () {
+            const loader = document.getElementById('exia-loader');
+            const progressBar = document.getElementById('exia-progress');
+            const MIN_TIME = 2000;   // 至少显示3秒
+            const MAX_TIME = 5000;   // 最多显示5秒
+            const startTime = Date.now();
+
+            // 立即加载状态栏 (Before Loader Finishes)
+            const statusBar = document.getElementById('status-bar');
+            if (statusBar) {
+                statusBar.classList.remove('hidden');
+                // Use setTimeout to ensure transition plays
+                setTimeout(() => statusBar.classList.add('visible'), 100);
+            }
+
+            // 进度条：5秒内从0走到100%
+            const updateProgress = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min((elapsed / MAX_TIME) * 100, 100);
+                if (progressBar) progressBar.style.width = progress + '%';
+
+                if (elapsed < MAX_TIME && loader.parentElement) {
+                    requestAnimationFrame(updateProgress);
+                } else {
+                    if (progressBar) progressBar.style.width = '100%';
+                }
+            };
+            requestAnimationFrame(updateProgress); // Start immediately
+
+            // 统一的隐藏函数
+            const hideLoader = () => {
+                if (progressBar) progressBar.style.width = '100%';
+                if (loader) {
+                    loader.style.opacity = '0';
+                    setTimeout(() => {
+                        if (loader.parentElement) loader.remove();
+                    }, 600);
+                }
+            };
+
+            // 记录页面是否真正加载完成
+            window.addEventListener('load', () => {
+                const elapsed = Date.now() - startTime;
+                if (elapsed >= MIN_TIME) {
+                    hideLoader();
+                } else {
+                    setTimeout(hideLoader, MIN_TIME - elapsed);
+                }
+            });
+
+            // 保险：5秒后强制关闭
+            setTimeout(() => {
+                if (loader && loader.parentElement) {
+                    hideLoader();
+                }
+            }, MAX_TIME);
+        })();
+    </script>
+
+    <!-- Top Status Bar (Hidden initially) -->
+    <nav id="status-bar" class="status-bar hidden">
+        <div class="status-left" style="display: flex; align-items: center;">
+            <!-- Avatar (Real-time QQ) -->
+            <img src="https://q1.qlogo.cn/g?b=qq&nk=3485826632&s=100" class="header-avatar" alt="Avatar">
+            <h1 class="nav-title glow-text">梦回半仙の肉壶巢穴</h1>
+        </div>
+
+        <div class="status-center">
+            <div class="status-item">
+                <span class="icon">⏳</span>
+                <div class="status-text">
+                    <div>今日已调教<span id="stat-total">...</span>名肉壶</div>
+                    <div class="sub-text" id="clock">00:00:00</div>
+                </div>
+            </div>
+            <div class="status-item">
+                <span class="icon">🟢</span>
+                <div class="status-text">
+                    <div>同时调教的肉壶</div>
+                    <div class="sub-text" id="stat-online">...</div>
+                </div>
+            </div>
+            <div class="status-item">
+                <span class="icon">🚩</span>
+                <div class="status-text">
+                    <div>巢穴数量</div>
+                    <div class="sub-text" id="stat-offline">...</div>
+                </div>
+            </div>
+            <!-- Extra mock stats -->
+            <div class="status-item compact">⚪ ...</div>
+            <div class="status-item compact">⚪ ...</div>
+            <div class="status-item compact">⚯</div>
+            <div class="status-item compact">↓↑</div>
+        </div>
+
+        <div class="status-right">
+            <!-- Grid Icon -->
+            <button id="btn-grid" class="nav-btn" title="Toggle View">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none">
+                    <rect x="3" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="3" width="7" height="7"></rect>
+                    <rect x="14" y="14" width="7" height="7"></rect>
+                    <rect x="3" y="14" width="7" height="7"></rect>
+                </svg>
+            </button>
+            <!-- Moon Icon (Theme) -->
+            <button id="btn-theme" class="nav-btn" title="Toggle Theme">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+            <!-- User Icon (Login) -->
+            <button id="btn-user" class="nav-btn" title="Login">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                </svg>
+            </button>
+            <!-- Play Icon (Pause/Resume) -->
+            <button id="btn-play" class="nav-btn" title="Pause Updates">
+                <svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="currentColor">
+                    <path d="M5 3l14 9-14 9V3z"></path>
+                </svg>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container main-offset">
+        <h2 class="section-title" style="margin-bottom: 20px;">性奴的状态</h2>
+        <!-- Server Grid -->
+        <div id="server-grid" class="server-grid">
+            <!-- Cards injected by script -->
+        </div>
+
+        <!-- Site Monitor Section -->
+        <div id="site-monitor" class="site-monitor" style="margin-top: 50px; display: none;">
+            <h2 class="section-title">肉便器状态</h2>
+            <!-- Replaced table with grid for card view -->
+            <div id="site-grid" class="site-grid">
+                <!-- Site Cards injected by script -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Buttons (Fixed Bottom) -->
+    <div class="footer-dock">
+        <a href="https://sww.nocc.cc/" target="_blank" class="dock-btn">Sublink</a>
+        <a href="https://tv.nocc.cc/" target="_blank" class="dock-btn">LibreTV</a>
+        <a href="https://yinyue.mmmi.cc/" target="_blank" class="dock-btn">音乐</a>
+    </div>
+
+    <!-- Footer Copyright -->
+    <!-- <footer style="text-align: center; padding: 100px 0 20px; opacity: 0.3; font-size: 0.8rem;">
+        <p>&copy; 2025 GUIZUO SYSTEM</p>
+    </footer> -->
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+    <script>
+        // 强制至少3秒，最多5秒 + 进度条
+        (function () {
+            const loader = document.getElementById('exia-loader');
+            const progressBar = document.getElementById('exia-progress');
+            const MIN_TIME = 2000;   // 至少显示3秒
+            const MAX_TIME = 5000;   // 最多显示5秒
+            const startTime = Date.now();
+
+            // 立即显示顶部状态栏
+            const statusBar = document.getElementById('status-bar');
+            if (statusBar) {
+                statusBar.classList.remove('hidden');
+                // Use setTimeout to ensure transition plays
+                setTimeout(() => {
+                    statusBar.classList.add('visible');
+                    statusBar.style.opacity = '1';
+                    statusBar.style.transform = 'translateY(0)';
+                }, 100);
+            }
+
+            // 进度条：5秒内从0走到100%
+            const updateProgress = () => {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min((elapsed / MAX_TIME) * 100, 100);
+                if (progressBar) progressBar.style.width = progress + '%';
+
+                if (elapsed < MAX_TIME && loader.parentElement) {
+                    requestAnimationFrame(updateProgress);
+                } else {
+                    if (progressBar) progressBar.style.width = '100%';
+                }
+            };
+            requestAnimationFrame(updateProgress); // Start immediately
+
+            // 统一的隐藏函数
+            const hideLoader = () => {
+                if (progressBar) progressBar.style.width = '100%';
+                if (loader) {
+                    loader.style.opacity = '0';
+                    setTimeout(() => {
+                        if (loader.parentElement) loader.remove();
+                        // Trigger visible state for elements
+                        const statusBar = document.getElementById('status-bar');
+                        if (statusBar) {
+                            statusBar.classList.remove('hidden');
+                            statusBar.classList.add('visible');
+                            // Failsafe: force styles directly in case class fails
+                            statusBar.style.opacity = '1';
+                            statusBar.style.transform = 'translateY(0)';
+                        }
+                    }, 600);
+                }
+            };
+
+            // 记录页面是否真正加载完成
+            window.addEventListener('load', () => {
+                const elapsed = Date.now() - startTime;
+                if (elapsed >= MIN_TIME) {
+                    hideLoader();
+                } else {
+                    setTimeout(hideLoader, MIN_TIME - elapsed);
+                }
+            });
+
+            // 保险：5秒后强制关闭
+            setTimeout(() => {
+                if (loader && loader.parentElement) {
+                    hideLoader();
+                }
+            }, MAX_TIME);
+        })();
+    </script>
+</body>
+
+</html>

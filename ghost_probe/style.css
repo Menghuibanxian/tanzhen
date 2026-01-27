@@ -1,0 +1,868 @@
+/* ========== Ghost Green Theme Config ========== */
+:root {
+    --ghost-primary: #66ffb3;
+    --ghost-secondary: #99ffcc;
+    --ghost-bg: #0a1a15;
+    --ghost-text: #e0fff5;
+    --ghost-accent: #00cc99;
+    --exia-primary: #66ffb3;
+    --exia-deep: #00cc88;
+
+    /* Background GIF - Local File */
+    --ghost-pattern: url("beijing.gif");
+}
+
+body {
+    background-color: var(--ghost-bg) !important;
+    background-image: var(--ghost-pattern) !important;
+    /* User request: Image height = Browser height, scales to fit. 
+       Repeat horizontally to cover wide screens (ultrawide) without blank space. */
+    background-size: auto 100%;
+    background-repeat: repeat;
+    background-attachment: fixed;
+    background-position: center top;
+
+    /* User prefers the look at 75% browser zoom. Applying global scale. */
+    zoom: 0.75;
+
+    color: var(--ghost-text) !important;
+    margin: 0;
+    padding: 0;
+    overflow-x: hidden;
+    position: relative;
+    font-family: "Microsoft YaHei", "微软雅黑", sans-serif !important;
+    min-height: 100vh;
+    /* Removed animation: bgPulse - GIF handles flashing */
+}
+
+/* ... skipped unrelated ... */
+
+/* ========== Server Grid & Cards ========== */
+.server-grid {
+    display: grid;
+    /* Reduced to 240px for smaller cards */
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 15px;
+    /* Reduced gap */
+}
+
+/* List View Toggle */
+.server-grid.list-view {
+    grid-template-columns: 1fr;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+
+.server-card {
+    background: rgba(10, 26, 21, 0.65);
+    /* Slightly clearer */
+    border: 1px solid rgba(102, 255, 179, 0.3);
+    box-shadow: 0 0 15px rgba(102, 255, 179, 0.05);
+    border-radius: 6px;
+    padding: 15px;
+    /* Compact padding */
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.server-card.offline-card {
+    border-color: rgba(255, 68, 68, 0.3);
+    opacity: 0.8;
+}
+
+.server-card:hover {
+    box-shadow: 0 0 25px rgba(102, 255, 179, 0.2);
+    border-color: rgba(102, 255, 179, 0.6);
+    transform: translateY(-2px);
+}
+
+/* ========== Overlay Layer ========== */
+/* ========== Overlay Layer ========== */
+.bg-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    /* Removed dark green overlay that was causing greenish blur */
+    background: transparent;
+    z-index: -1;
+    pointer-events: none;
+}
+
+/* ========== Layout ========== */
+.container {
+    max-width: 1536px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.main-offset {
+    margin-top: 80px;
+    /* Space for fixed header */
+    padding-bottom: 100px;
+    /* Space for footer dock */
+}
+
+/* ========== Utility Classes ========== */
+.hidden {
+    display: none !important;
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* ========== Top Status Bar ========== */
+/* ========== Navigation / Status Bar ========== */
+.status-bar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 70px;
+    background: rgba(10, 26, 21, 0.85);
+    /* Semi-transparent dark green */
+    backdrop-filter: blur(10px);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 30px;
+    z-index: 1000;
+    /* Ensure on top of content but below loader (99999) */
+    /* Animation state */
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.status-bar.visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.nav-title {
+    font-size: 1.5rem;
+    margin: 0;
+    letter-spacing: 1px;
+}
+
+.status-center {
+    display: flex;
+    gap: 30px;
+    font-size: 0.85rem;
+    color: #fff;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.status-item .icon {
+    font-size: 1.2rem;
+}
+
+.status-text {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.2;
+}
+
+.status-text .sub-text {
+    font-size: 0.75rem;
+    opacity: 0.7;
+    font-family: monospace;
+}
+
+.status-item.compact {
+    opacity: 0.5;
+    font-size: 0.8rem;
+}
+
+.status-right {
+    display: flex;
+    gap: 15px;
+}
+
+.nav-btn {
+    background: none;
+    border: none;
+    color: var(--ghost-text);
+    cursor: pointer;
+    opacity: 0.8;
+    transition: all 0.2s;
+    padding: 5px;
+    border-radius: 4px;
+}
+
+.nav-btn:hover {
+    color: var(--ghost-primary);
+    background: rgba(102, 255, 179, 0.1);
+    opacity: 1;
+}
+
+/* ========== Footer Dock (Bottom Bar) ========== */
+.footer-dock {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 60px;
+    /* Fixed height for the bar */
+    background: rgba(10, 26, 21, 0.95);
+    /* Dark background matching screenshot */
+    border-top: 1px solid var(--ghost-primary);
+    /* Green top border */
+    box-shadow: 0 -5px 20px rgba(102, 255, 179, 0.1);
+    /* Subtle glowing top shadow */
+    display: flex;
+    justify-content: center;
+    /* Center the buttons */
+    align-items: center;
+    gap: 30px;
+    z-index: 1000;
+    /* Ensure on top */
+    backdrop-filter: blur(10px);
+}
+
+.dock-btn {
+    display: block;
+    padding: 6px 20px;
+    border: 1px solid var(--ghost-primary);
+    border-radius: 6px;
+    color: var(--ghost-text);
+    text-decoration: none;
+    background: transparent;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.dock-btn:hover {
+    background: rgba(102, 255, 179, 0.2);
+    box-shadow: 0 0 15px rgba(102, 255, 179, 0.4);
+    transform: translateY(-2px);
+    color: #fff;
+}
+
+.dock-btn:active,
+.nav-btn:active {
+    transform: scale(0.95);
+    /* Click press effect */
+}
+
+/* Header Avatar */
+.header-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 4px;
+    margin-right: 15px;
+    border: 2px solid var(--ghost-primary);
+}
+
+/* ... skipped ... */
+
+/* ========== Server Grid & Cards ========== */
+/* ========== Server Grid & Cards ========== */
+.server-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+    /* Scaled down ~19.5% from 320px */
+    gap: 16px;
+    transition: all 0.5s ease;
+}
+
+/* List View Toggle */
+.server-grid.list-view {
+    grid-template-columns: 1fr;
+    /* Full width */
+}
+
+.server-grid.list-view .server-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 10px 20px;
+}
+
+.server-grid.list-view .card-header {
+    margin: 0;
+    border: none;
+    width: 200px;
+    /* Fixed width name in list */
+    flex-shrink: 0;
+}
+
+.server-grid.list-view .stat-row {
+    flex: 1;
+    margin: 0;
+}
+
+.server-grid.list-view .net-stats {
+    display: flex;
+    flex-direction: column;
+    width: 150px;
+    margin: 0;
+    border: none;
+    padding: 0;
+}
+
+/* ========== Website Monitor Section (Restored) ========== */
+.site-monitor {
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px dashed rgba(102, 255, 179, 0.2);
+}
+
+.section-title {
+    color: var(--ghost-primary);
+    margin-bottom: 25px;
+    font-size: 1.2rem;
+    border-left: 4px solid var(--ghost-primary);
+    padding-left: 15px;
+    letter-spacing: 1px;
+}
+
+.site-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 15px;
+}
+
+.site-card {
+    background: rgba(10, 26, 21, 0.4);
+    /* Darker/More transparent than server cards */
+    border: 1px solid rgba(102, 255, 179, 0.15);
+    border-radius: 6px;
+    padding: 15px;
+    backdrop-filter: blur(5px);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.site-card:hover {
+    background: rgba(10, 26, 21, 0.7);
+    border-color: rgba(102, 255, 179, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.site-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(102, 255, 179, 0.1);
+    margin-bottom: 10px;
+}
+
+.site-name {
+    font-weight: bold;
+    font-size: 1rem;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.site-stats-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.7);
+    font-family: Consolas, monospace;
+}
+
+.site-stat-item {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.site-stat-label {
+    font-size: 0.7rem;
+    opacity: 0.6;
+}
+
+.site-history {
+    margin-top: 5px;
+    height: 8px;
+    /* Thinner bar for history */
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 2px;
+    display: flex;
+    gap: 1px;
+    overflow: hidden;
+}
+
+.history-segment {
+    flex: 1;
+    background: rgba(102, 255, 179, 0.2);
+}
+
+.history-segment.ok {
+    background: var(--ghost-primary);
+    opacity: 0.8;
+}
+
+.history-segment.slow {
+    background: #FFC107;
+}
+
+.history-segment.down {
+    background: #ff4444;
+}
+
+.status-badge {
+    font-size: 0.7rem;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.status-badge.ok {
+    color: var(--ghost-primary);
+    background: rgba(102, 255, 179, 0.1);
+    border: 1px solid rgba(102, 255, 179, 0.2);
+}
+
+.status-badge.fail {
+    color: #ff4444;
+    background: rgba(255, 68, 68, 0.1);
+    border: 1px solid rgba(255, 68, 68, 0.2);
+}
+
+/* Server Cards (Scaled Down) */
+
+.server-card {
+    background: rgba(10, 26, 21, 0.6);
+    border: 1px solid rgba(102, 255, 179, 0.3);
+    box-shadow: 0 0 15px rgba(102, 255, 179, 0.05);
+    /* Softer shadow */
+    border-radius: 8px;
+    padding: 16px;
+    /* Scaled down from 20px */
+    transition: all 0.3s ease;
+    backdrop-filter: blur(5px);
+}
+
+.server-card.offline-card {
+    border-color: rgba(255, 68, 68, 0.3);
+    opacity: 0.8;
+}
+
+.server-card:hover {
+    box-shadow: 0 0 25px rgba(102, 255, 179, 0.2);
+    border-color: rgba(102, 255, 179, 0.6);
+    transform: translateY(-2px);
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    /* Scaled */
+    padding-bottom: 8px;
+    /* Scaled */
+    border-bottom: 1px solid rgba(102, 255, 179, 0.1);
+}
+
+.server-info-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* Scaled */
+}
+
+.flag-icon {
+    font-size: 1rem;
+    /* Scaled */
+}
+
+.server-name {
+    font-size: 0.9rem;
+    /* Scaled */
+    margin: 0;
+    font-weight: bold;
+    color: #fff;
+}
+
+.server-type {
+    font-size: 0.6rem;
+    /* Scaled */
+    opacity: 0.6;
+    background: rgba(102, 255, 179, 0.1);
+    padding: 2px 4px;
+    /* Scaled */
+    border-radius: 4px;
+    display: block;
+    margin-top: 3px;
+    /* Scaled */
+}
+
+.status-dot {
+    width: 10px;
+    /* Scaled */
+    height: 10px;
+    border-radius: 50%;
+    position: relative;
+}
+
+.status-dot::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    /* Scaled */
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border-radius: 50%;
+    border: 1px solid currentColor;
+    opacity: 0.3;
+    animation: ping 2s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes ping {
+
+    75%,
+    100% {
+        transform: scale(2);
+        opacity: 0;
+    }
+}
+
+.status-dot.online {
+    background-color: var(--ghost-accent);
+    color: var(--ghost-accent);
+    box-shadow: 0 0 10px var(--ghost-accent);
+}
+
+.status-dot.offline {
+    background-color: #ff4444;
+    color: #ff4444;
+    box-shadow: 0 0 10px #ff4444;
+}
+
+.stat-row {
+    margin-bottom: 10px;
+    /* Scaled */
+}
+
+.stat-label {
+    font-size: 0.6rem;
+    /* Scaled */
+    opacity: 0.8;
+    margin-bottom: 3px;
+    /* Scaled */
+    display: flex;
+    justify-content: space-between;
+}
+
+/* ========== Gauges (Circular Charts) ========== */
+/* ========== Gauges (Circular Charts) ========== */
+.gauges-row {
+    display: flex;
+    justify-content: space-around;
+    padding: 8px 0;
+    /* Scaled */
+    margin-bottom: 4px;
+    /* Scaled */
+}
+
+.gauge-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    /* Scaled */
+}
+
+.gauge-chart {
+    position: relative;
+    width: 45px;
+    /* Scaled down from 60px */
+    height: 45px;
+}
+
+.gauge-svg {
+    width: 100%;
+    height: 100%;
+    transform: rotateX(180deg);
+    /* Neon Glow for the gauge stroke */
+    filter: drop-shadow(0 0 2px var(--ghost-primary));
+}
+
+.gauge-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.1);
+}
+
+.gauge-progress {
+    fill: none;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease;
+}
+
+.gauge-value {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 0.7rem;
+    /* Scaled */
+    font-weight: bold;
+    color: #fff;
+    font-family: Consolas, Monaco, "Andale Mono", monospace;
+    text-shadow: 0 0 5px rgba(0, 0, 0, 0.8);
+}
+
+.gauge-label {
+    font-size: 0.6rem;
+    /* Scaled */
+    opacity: 0.8;
+}
+
+.net-stats {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 5px;
+    /* Keep gap */
+    padding-top: 6px;
+    /* Scaled */
+    border-top: 1px dashed rgba(102, 255, 179, 0.2);
+    font-size: 0.6rem;
+    /* Scaled */
+    color: rgba(255, 255, 255, 0.7);
+    font-family: Consolas, Monaco, "Andale Mono", monospace;
+}
+
+.net-item {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 4px;
+}
+
+.traffic-badge {
+    background: rgba(102, 255, 179, 0.1);
+    padding: 2px 5px;
+    border-radius: 3px;
+    color: var(--ghost-primary);
+    text-shadow: 0 0 2px var(--ghost-primary);
+}
+
+/* ========== GN Drive Loading Animation (Exact from Screenshot) ========== */
+#loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: #000a14;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    opacity: 1;
+    transition: opacity 0.6s ease-out;
+}
+
+.exia-eyes-wrapper {
+    display: flex;
+    gap: 0px;
+    /* Touching/Adjacent as requested */
+    margin-bottom: 25px;
+}
+
+.exia-eye-box {
+    position: relative;
+    width: 70px;
+    height: 70px;
+}
+
+.exia-eye {
+    width: 100%;
+    height: 100%;
+    /* Ensure border is included in width/height so it stays 70x70 and centered */
+    box-sizing: border-box;
+    border: 4px solid var(--exia-primary);
+    border-radius: 50%;
+    position: relative;
+    box-shadow: 0 0 30px rgba(0, 255, 136, 0.4);
+    /* Subtle rotation or just static based on image? 
+       Taking cue from previous "rotate" animation but making it subtle if needed. 
+       Archive showed rotation, so keeping it. */
+    animation: exiaRotate 3s linear infinite;
+}
+
+.exia-pupil {
+    position: absolute;
+    inset: 0;
+    width: 20px;
+    height: 20px;
+    margin: auto;
+    background: var(--exia-primary);
+    border-radius: 50%;
+    animation: exiaPulse 1.5s ease-in-out infinite alternate;
+    box-shadow: 0 0 25px var(--exia-primary);
+    z-index: 1;
+}
+
+/* Inner Pupil - Heart Shape Modification */
+.exia-inner-pupil {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    /* Shrink by 40%: 10px -> 6px */
+    width: 6px;
+    height: 6px;
+    background: var(--exia-deep);
+    transform: rotate(-45deg);
+    /* Base rotation for heart */
+    animation: exiaHeartPulse 1.5s ease-in-out infinite alternate;
+    /* Custom pulse for heart */
+    box-shadow: 0 0 10px var(--exia-deep);
+    z-index: 2;
+    /* Remove default border-radius so it's a square base */
+    border-radius: 0;
+}
+
+.exia-inner-pupil::before,
+.exia-inner-pupil::after {
+    content: "";
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: var(--exia-deep);
+    border-radius: 50%;
+}
+
+.exia-inner-pupil::before {
+    top: -3px;
+    /* Adjusted for 6px size */
+    left: 0;
+}
+
+.exia-inner-pupil::after {
+    left: 3px;
+    /* Adjusted for 6px size */
+    top: 0;
+}
+
+/* New pulse animation specifically for the heart to preserve rotation */
+@keyframes exiaHeartPulse {
+    0% {
+        opacity: 0.6;
+        transform: rotate(-45deg) scale(0.8);
+    }
+
+    100% {
+        opacity: 1;
+        transform: rotate(-45deg) scale(1.2);
+        box-shadow: 0 0 15px var(--exia-deep);
+    }
+}
+
+/* Progress Bar from Archive */
+.exia-progress-container {
+    width: 260px;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    box-shadow: 0 0 10px rgba(102, 255, 179, 0.3);
+}
+
+.exia-progress-bar {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, #00cc88, var(--exia-primary));
+    border-radius: 3px;
+    box-shadow: 0 0 15px rgba(102, 255, 179, 0.8);
+    transition: width 0.1s linear;
+}
+
+.loading-text {
+    font-size: 1.1rem;
+    color: var(--ghost-primary);
+    text-shadow: 0 0 10px var(--ghost-primary);
+    letter-spacing: 1px;
+    font-weight: bold;
+}
+
+/* Removed subtext class as text is now combined */
+
+@keyframes exiaRotate {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes exiaPulse {
+    0% {
+        opacity: 0.6;
+        transform: scale(0.8);
+        box-shadow: 0 0 25px var(--exia-primary);
+    }
+
+    100% {
+        opacity: 1;
+        transform: scale(1.1);
+        box-shadow: 0 0 40px var(--exia-primary), 0 0 60px rgba(0, 255, 136, .6);
+    }
+}
+
+/* ========== Floating Particles System (Original from Archive) ========== */
+#particles {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 133.333vw;
+    /* Compensate for body zoom: 0.75 */
+    height: 133.333vh;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    /* Zoom affects fixed elements, so we expand it to cover full viewport */
+}
+
+.particle {
+    position: absolute;
+    background: radial-gradient(circle, #66ffb3 0%, #44cc88 70%, transparent 100%);
+    border-radius: 50%;
+    opacity: 0;
+    animation: float linear forwards;
+    will-change: transform, opacity;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0) translateX(0) scale(1);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 1;
+    }
+
+    90% {
+        opacity: 1;
+    }
+
+    100% {
+        transform: translateY(-120vh) translateX(calc(50px * var(--dx))) scale(0.3);
+        opacity: 0;
+    }
+}
+@media screen and (max-width: 768px) {
+    #status-bar,
+    .footer-dock {
+        display: none !important;
+    }
+}
