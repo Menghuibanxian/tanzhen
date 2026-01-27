@@ -61,10 +61,6 @@ async function fetchData() {
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
 
-        // Nezha API returns { servers: [...] } or { result: [...] } or array?
-        // Usually it's an object with a 'result' or directly an array if it's the batch status.
-        // Based on typical Nezha status/batch logic, let's log and handle valid data.
-
         let servers = [];
         if (data.servers) servers = data.servers;
         else if (data.result) servers = data.result;
@@ -104,7 +100,6 @@ async function fetchSitesData() {
  * Prioritizes 'successful' or 'last_status' fields over status code.
  */
 function isSiteUp(site) {
-    // Special handle: If 'Pages' usually returns 404 but is considered normal
     if (site.name === 'Pages' && site.last_status_code === 404) return true;
 
     if (typeof site.successful !== 'undefined') {
@@ -115,61 +110,55 @@ function isSiteUp(site) {
         const s = String(site.last_status).toUpperCase();
         return s === 'UP' || s === 'SUCCESSFUL' || s === 'TRUE' || s === '1' || s === 'OK';
     }
-
-    // Fallback if no explicit status field (though user prefers avoiding this, we keep it as last resort)
     return site.last_status_code >= 200 && site.last_status_code < 300;
 }
 
 function updateHeaderStats() {
-    // 1. Total Count (Servers + Sites)
-    // "今日已调教"
-    const totalCount = cachedServerData.length + cachedSiteData.length;
-    const elTotal = document.getElementById('stat-total');
-    if (elTotal) elTotal.innerText = totalCount;
+    try {
+        // 1. Total Count (Servers + Sites)
+        const totalCount = cachedServerData.length + cachedSiteData.length;
+        const elTotal = document.getElementById('stat-total');
+        if (elTotal) elTotal.innerText = totalCount;
 
-    // 2. Online Count (Online Servers + Online Sites)
-    // "同时调教的数就是肉便器在线的个数" + "性奴的状态"
-    // Server Online: !server.error
-    const onlineServersArr = cachedServerData.filter(s => !s.error);
-    const onlineServers = onlineServersArr.length;
-    // Site Online: Use shared helper logic
-    const onlineSitesArr = cachedSiteData.filter(site => isSiteUp(site));
-    const onlineSites = onlineSitesArr.length;
+        // 2. Online Count
+        const onlineServersArr = cachedServerData.filter(s => !s.error);
+        const onlineServers = onlineServersArr.length;
+        const onlineSitesArr = cachedSiteData.filter(site => isSiteUp(site));
+        const onlineSites = onlineSitesArr.length;
 
-    const totalOnline = onlineServers + onlineSites;
-    const elOnline = document.getElementById('stat-online');
-    if (elOnline) elOnline.innerText = totalOnline;
+        const totalOnline = onlineServers + onlineSites;
+        const elOnline = document.getElementById('stat-online');
+        if (elOnline) elOnline.innerText = totalOnline;
 
-    // 3. Offline Count (Offline Servers + Offline Sites)
-    // "巢穴数量就是肉便器性奴离线的个数"
-    // Server offline: usually !server.online or based on API structure. 
-    // In our createServerCard logic: isOnline = !server.error;
-    const offlineServersArr = cachedServerData.filter(s => !!s.error); // error: true means offline
-    const offlineSitesArr = cachedSiteData.filter(site => !isSiteUp(site));
+        // 3. Offline Count
+        const offlineServersArr = cachedServerData.filter(s => !!s.error);
+        const offlineSitesArr = cachedSiteData.filter(site => !isSiteUp(site));
 
-    const totalOffline = offlineServersArr.length + offlineSitesArr.length;
-    const elOffline = document.getElementById('stat-offline');
-    if (elOffline) elOffline.innerText = totalOffline;
+        const totalOffline = offlineServersArr.length + offlineSitesArr.length;
+        const elOffline = document.getElementById('stat-offline');
+        if (elOffline) elOffline.innerText = totalOffline;
 
-    // 4. Network Stats (Total Upload/Download)
-    let totalNetIn = 0;
-    let totalNetOut = 0;
+        // 4. Network Stats (Total Upload/Download)
+        let totalNetIn = 0;
+        let totalNetOut = 0;
 
-    // Sum from all cached servers using the SYNCED display values
-    cachedServerData.forEach(s => {
-        // Use synced values (or fallback to 0/raw if not yet calc'd)
-        const netIn = (typeof s._displayNetworkIn !== 'undefined') ? s._displayNetworkIn : (Number(s.network_in) || 0);
-        const netOut = (typeof s._displayNetworkOut !== 'undefined') ? s._displayNetworkOut : (Number(s.network_out) || 0);
+        // Sum from all cached servers
+        cachedServerData.forEach(s => {
+            const netIn = (typeof s._displayNetworkIn !== 'undefined') ? s._displayNetworkIn : (Number(s.network_in) || 0);
+            const netOut = (typeof s._displayNetworkOut !== 'undefined') ? s._displayNetworkOut : (Number(s.network_out) || 0);
 
-        totalNetIn += netIn;
-        totalNetOut += netOut;
-    });
+            totalNetIn += netIn;
+            totalNetOut += netOut;
+        });
 
-    const elNetUp = document.getElementById('stat-network-up');
-    const elNetDown = document.getElementById('stat-network-down');
+        const elNetUp = document.getElementById('stat-network-up');
+        const elNetDown = document.getElementById('stat-network-down');
 
-    if (elNetUp) elNetUp.innerText = formatBytes(totalNetOut) + '/s';
-    if (elNetDown) elNetDown.innerText = formatBytes(totalNetIn) + '/s';
+        if (elNetUp) elNetUp.innerText = formatBytes(totalNetOut) + '/s';
+        if (elNetDown) elNetDown.innerText = formatBytes(totalNetIn) + '/s';
+    } catch (e) {
+        console.error("Update Header Stats Failed:", e);
+    }
 }
 
 function renderServers(data) {
@@ -183,6 +172,7 @@ function renderServers(data) {
         return;
     }
 
+    // Pass data directly, createServerCard handles normalization
     grid.innerHTML = servers.map(server => createServerCard(server)).join('');
 }
 
@@ -190,7 +180,6 @@ function renderSites(data) {
     const container = document.getElementById('site-monitor');
     const grid = document.getElementById('site-grid');
 
-    // Check structure: usually { "sites": [...] } or array
     let sites = [];
     if (data.sites) sites = data.sites;
     else if (Array.isArray(data)) sites = data;
@@ -202,23 +191,13 @@ function renderSites(data) {
 
     if (container) container.style.display = 'block';
 
-
-
-    // Render Cards for Grid Layout
     grid.innerHTML = sites.map(site => {
         const isUp = isSiteUp(site);
-
         const latency = site.last_response_time_ms || 0;
-
-        // History Bar Logic
         const historySegments = site.history || Array(30).fill({ status: 1 });
         const historyBarHtml = historySegments.slice(-30).map(point => {
-            // Placeholder: assume point has status or just use dummy ok
-            // Real logic: check point.status or latency
             return `<div class="history-segment ${isUp ? 'ok' : 'down'}"></div>`;
         }).join('');
-
-
 
         return `
             <div class="site-card">
@@ -251,12 +230,9 @@ function renderSites(data) {
     }).join('');
 }
 
-
-/* ========== Helper: Create Circular Gauge ========== */
 function createGauge(percent, label, color) {
     const radius = 26;
     const circumference = 2 * Math.PI * radius;
-    // Ensure percent is between 0 and 100
     const safePercent = Math.min(100, Math.max(0, percent));
     const offset = circumference - (safePercent / 100) * circumference;
 
@@ -277,21 +253,18 @@ function createGauge(percent, label, color) {
 }
 
 function createServerCard(server) {
-    // 1. Normalize Data Structure
-    // Handle both Flat (Mock) and Nested (API: {server:{...}, metrics:{...}})
     let name, type, isOnline, cpu, ram, hdd, netIn, netOut, totalIn, totalOut, uptime;
 
+    // Handle Nested Structure (Real API usually)
     if (server.server && server.metrics) {
-        // Real API Structure
         const s = server.server;
         const m = server.metrics;
 
         name = s.name || 'Unknown';
-        type = s.description || 'Nezha Node'; // Use description as type/tag
-        isOnline = !server.error; // Assuming error=false means online
+        type = s.description || 'Nezha Node';
+        isOnline = !server.error;
 
         cpu = m.cpu ? m.cpu.usage_percent : 0;
-
         const memUsed = m.memory ? m.memory.used : 0;
         const memTotal = m.memory ? m.memory.total : 1;
         ram = memTotal > 0 ? (memUsed / memTotal) * 100 : 0;
@@ -305,15 +278,13 @@ function createServerCard(server) {
             netIn = server._displayNetworkIn;
             netOut = server._displayNetworkOut;
         } else {
-            // Fallback if not yet calculated
+            // Fallback
             netIn = (m.network ? m.network.download_speed : 0);
             netOut = (m.network ? m.network.upload_speed : 0);
         }
 
-        // Total Transfer
         totalIn = m.network ? m.network.total_download : 0;
         totalOut = m.network ? m.network.total_upload : 0;
-
         uptime = m.uptime || 0;
     } else {
         // Flat Structure (Mock / Other API variants)
@@ -321,7 +292,6 @@ function createServerCard(server) {
         type = server.type || server.Tag || 'Unknown';
         isOnline = server.online !== false;
 
-        // Parse State Object if present
         const state = server.State || {};
         cpu = server.cpu || state.CPU || 0;
 
@@ -333,34 +303,27 @@ function createServerCard(server) {
         const hddTotal = server.hdd_total || state.DiskTotal || 1;
         hdd = (hddUsed / hddTotal) * 100;
 
-        // Use Pre-calculated Display Metrics if available (Sync with header)
         if (typeof server._displayNetworkIn !== 'undefined') {
             netIn = server._displayNetworkIn;
             netOut = server._displayNetworkOut;
         } else {
-            // Fallback
             netIn = (server.network_in || state.NetInSpeed || 0);
             netOut = (server.network_out || state.NetOutSpeed || 0);
         }
 
-        // Total Transfer (Fallback)
         totalIn = server.transfer_in || state.TransferIn || 0;
         totalOut = server.transfer_out || state.TransferOut || 0;
-
         uptime = server.uptime || state.Uptime || 0;
     }
 
     const statusClass = isOnline ? 'online' : 'offline';
 
-    // 2. Formatting & Mapping
-    // Map Chinese/English country names to Flags
     const flags = {
         'JP': '🇯🇵', 'US': '🇺🇸', 'HK': '🇭🇰', 'CN': '🇨🇳', 'SG': '🇸🇬', 'KR': '🇰🇷', 'DE': '🇩🇪', 'UK': '🇬🇧',
         '日本': '🇯🇵', '美国': '🇺🇸', '香港': '🇭🇰', '中国': '🇨🇳', '新加坡': '🇸🇬', '韩国': '🇰🇷', '德国': '🇩🇪', '英国': '🇬🇧',
         '台湾': '🇹🇼', 'TW': '🇹🇼'
     };
 
-    // Attempt to find country code in Name or Type
     let flag = '🏳️';
     const searchString = (name + " " + type).toUpperCase();
     for (const [key, value] of Object.entries(flags)) {
@@ -370,10 +333,7 @@ function createServerCard(server) {
         }
     }
 
-    // Parse Expiration Date from Description (stored in 'type')
-    // Format: "2026-10-03到期" or similar
     let daysRemaining = '∞';
-
     const dateMatch = type.match(/(\d{4}-\d{2}-\d{2})/);
     if (dateMatch) {
         const targetDate = new Date(dateMatch[1]);
@@ -395,7 +355,6 @@ function createServerCard(server) {
                 <div class="status-dot ${statusClass}"></div>
             </div>
             
-            <!-- Gauges Row -->
             <div class="gauges-row">
                 ${createGauge(cpu, '敏感度', 'var(--ghost-accent)')}
                 ${createGauge(ram, '扩张度', '#2196F3')}
@@ -412,7 +371,6 @@ function createServerCard(server) {
                     <span>射入</span>
                 </div>
             </div>
-            <!-- Total Transfer Row (New) -->
             <div class="net-stats" style="border:none; padding-top:2px; margin-top:0;">
                 <div class="net-item">
                     <span>总喷水</span>
@@ -436,7 +394,6 @@ function createServerCard(server) {
     `;
 }
 
-/* ========== Helpers ========== */
 function formatBytes(bytes, decimals = 2) {
     if (!+bytes) return '0 B';
     const k = 1024;
@@ -457,14 +414,12 @@ function formatUptime(seconds) {
     return `${m}m`;
 }
 
-/* ========== Particle System (Original from Archive) ========== */
 function initParticles() {
-    // Ensure container exists
     let container = document.getElementById('particles');
     if (!container) {
         container = document.createElement('div');
         container.id = 'particles';
-        document.body.prepend(container); // Put it behind everything (z-index 0 in CSS)
+        document.body.prepend(container);
     }
 
     const gradients = [
@@ -474,10 +429,8 @@ function initParticles() {
     ];
     const minSize = 4, maxSize = 8;
     const minDuration = 8, maxDuration = 15;
-
-    // Lower frequency for mobile devices
     const isMobile = window.innerWidth <= 768;
-    const spawnInterval = isMobile ? 450 : 50; // Increased frequency for desktop
+    const spawnInterval = isMobile ? 450 : 50;
 
     function createParticle() {
         const particle = document.createElement('div');
@@ -488,24 +441,17 @@ function initParticles() {
         const delay = Math.random() * 2;
 
         particle.style.width = `${size}px`;
-        particle.style.width = `${size}px`;
         particle.style.height = `${size}px`;
         particle.style.left = `${Math.random() * 100}%`;
-        particle.style.bottom = `-20px`; // Start slightly below screen
-        // Set custom property for X-axis drift
+        particle.style.bottom = `-20px`;
         particle.style.setProperty('--dx', dx);
         particle.style.background = gradients[Math.floor(Math.random() * gradients.length)];
         particle.style.animation = `float ${duration}s linear ${delay}s forwards`;
-
         container.appendChild(particle);
-
-        // Auto-remove when animation ends
         particle.addEventListener('animationend', () => particle.remove());
     }
 
-    // Start particle generation
     setInterval(createParticle, spawnInterval);
-    // Create initial batch
     for (let i = 0; i < 10; i++) createParticle();
 }
 
@@ -513,22 +459,34 @@ function updateClock() {
     const clock = document.getElementById('clock');
     if (!clock) return;
     const now = new Date();
-    clock.innerText = now.toLocaleTimeString('en-GB'); // 24-hour format
+    clock.innerText = now.toLocaleTimeString('en-GB');
 }
-
 
 // Helper to calculate display metrics (including noise) for sync
 function calculateDisplayMetrics() {
     cachedServerData.forEach(server => {
-        const state = server.status || {};
+        let netIn = 0;
+        let netOut = 0;
+
+        // Handle Nested Structure (Real API usually)
+        if (server.server && server.metrics && server.metrics.network) {
+            netIn = server.metrics.network.download_speed;
+            netOut = server.metrics.network.upload_speed;
+        }
+        // Handle Flat/Mock Structure
+        else {
+            const state = server.status || {};
+            netIn = server.network_in || state.NetInSpeed || 0;
+            netOut = server.network_out || state.NetOutSpeed || 0;
+        }
 
         // Network Noise: 10 - 1000 B/s
         const noiseIn = Math.floor(Math.random() * 991) + 10;
         const noiseOut = Math.floor(Math.random() * 991) + 10;
 
         // Calculate and store on server object for consistency between Card and Header
-        server._displayNetworkIn = (server.network_in || state.NetInSpeed || 0) + noiseIn;
-        server._displayNetworkOut = (server.network_out || state.NetOutSpeed || 0) + noiseOut;
+        server._displayNetworkIn = (Number(netIn) || 0) + noiseIn;
+        server._displayNetworkOut = (Number(netOut) || 0) + noiseOut;
     });
 }
 
