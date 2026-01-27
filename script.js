@@ -186,12 +186,70 @@ function renderSites(data) {
     }
     if (container) container.style.display = 'block';
 
-    grid.innerHTML = sites.map(site => {
+    grid.innerHTML = sites.map((site, index) => {
         const isUp = isSiteUp(site);
         const latency = site.last_response_time_ms || 0;
-        const historySegments = site.history || Array(30).fill({ status: 1 });
-        const historyBarHtml = historySegments.slice(-30).map(point => {
-            return `<div class="history-segment ${isUp ? 'ok' : 'down'}"></div>`;
+        // [FIX] 24h Record Bar - Real Data Binding
+        // 1. Get History (Handle numbers or objects)
+        let rawHistory = site.history || [];
+
+        // 2. Normalize to array of status/latency (0 = down, >0 = up)
+        const historyData = rawHistory.map(h => {
+            if (typeof h === 'number') return h;
+
+            // [FIX] Priority Check: Status String or Status Code
+            // If explicit "UP" or 200-299 code, force it to be treated as UP (return 1 minimum)
+            if (h.status === 'UP' || (h.status_code >= 200 && h.status_code < 400)) {
+                // Return latency if valid, otherwise return 1ms to ensure Green Bar
+                let lat = h.response_time_ms || h.avg_delay || h.latency || h.delay || h.duration || 1;
+                return lat > 0 ? lat : 1;
+            }
+
+            // Fallback for objects without status text (try latency fields)
+            let val = 0;
+            if (h.response_time_ms !== undefined) val = h.response_time_ms;
+            else if (h.avg_delay !== undefined) val = h.avg_delay;
+            else if (h.latency !== undefined) val = h.latency;
+            else if (h.delay !== undefined) val = h.delay;
+            else if (h.duration !== undefined) val = h.duration;
+
+            return val;
+        });
+
+
+
+        // 3. Generate 24 segments (1 bar = ~1 hour)
+        // API returns data Newest -> Oldest (approx 1 point/min)
+        const maxPoints = 24;
+        const pointsPerHour = 60; // Approx sampling interval
+
+        const displayData = [];
+        for (let i = 0; i < maxPoints; i++) {
+            // i=0 (Leftmost, Oldest) -> i=23 (Rightmost, Newest)
+            // We want index 0 to be NOW. So Rightmost should imply index 0.
+            // Formula: index = (maxPoints - 1 - i) * pointsPerHour
+            const dataIndex = (maxPoints - 1 - i) * pointsPerHour;
+
+            if (dataIndex < historyData.length) {
+                displayData.push(historyData[dataIndex]);
+            } else {
+                displayData.push(null); // No data for this hour
+            }
+        }
+
+        const historyBarHtml = displayData.map((val, index) => {
+            const isLast = index === maxPoints - 1;
+
+            // State: No Data
+            if (val === null) return `<div class="history-segment history-nodata"></div>`;
+
+            // State: Down (0 latency)
+            if (val === 0) return `<div class="history-segment active-down"></div>`;
+
+            // State: Up (>0 latency)
+            // State: Up (>0 latency)
+            // Render GREEN for both History and Current (matching source panel style)
+            return `<div class="history-segment active-ok"></div>`;
         }).join('');
 
         return `

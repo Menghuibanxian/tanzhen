@@ -391,33 +391,52 @@ body {
     opacity: 0.6;
 }
 
+/* [FIX] 24h Record Bar - Block Style */
 .site-history {
     margin-top: 5px;
-    height: 8px;
-    /* Thinner bar for history */
-    background: rgba(0, 0, 0, 0.3);
+    height: 24px;
+    /* Taller bars matching Image 1 */
+    background: transparent;
+    /* No container background needed */
     border-radius: 2px;
     display: flex;
-    gap: 1px;
+    gap: 3px;
+    /* Distinct gap between blocks */
     overflow: hidden;
 }
 
 .history-segment {
     flex: 1;
-    background: rgba(102, 255, 179, 0.2);
+    border-radius: 2px;
+    transition: all 0.3s ease;
 }
 
-.history-segment.ok {
-    background: var(--ghost-primary);
-    opacity: 0.8;
+/* Inactive / Past Blocks (Gray) */
+.history-segment.history-gray {
+    background: rgba(100, 115, 125, 0.6);
+    /* Slate gray, semi-transparent */
+    border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.history-segment.slow {
-    background: #FFC107;
+/* No Data Blocks (Darker/Empty) */
+.history-segment.history-nodata {
+    background: rgba(255, 255, 255, 0.05);
+    /* Very faint */
+    border: 1px solid rgba(255, 255, 255, 0.02);
 }
 
-.history-segment.down {
+/* Current Active Block (Green/Red) */
+.history-segment.active-ok {
+    background: #00cc88;
+    /* Bright Green */
+    box-shadow: 0 0 8px rgba(0, 204, 136, 0.6);
+    /* Glow */
+}
+
+.history-segment.active-down {
     background: #ff4444;
+    /* Bright Red */
+    box-shadow: 0 0 8px rgba(255, 68, 68, 0.6);
 }
 
 .status-badge {
@@ -861,6 +880,7 @@ body {
     }
 
     100% {
+        -webkit-transform: translateY(-120vh) translateX(calc(50px * var(--dx))) scale(0.3);
         transform: translateY(-120vh) translateX(calc(50px * var(--dx))) scale(0.3);
         opacity: 0;
     }
