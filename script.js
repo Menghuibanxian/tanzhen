@@ -4,10 +4,13 @@
 */
 
 // Configuration
-// You can switch to mock data if API is down
-const API_URL = 'https://tanzhen.848880.xyz/api/status/batch'; // Use local proxy or direct URL
-const API_URL_SITES = 'https://tanzhen.848880.xyz/api/sites/status';
-// const API_URL = 'http://localhost:8787/api/status/batch'; // Local Dev
+// Dynamic API URL for Local vs Proxy/Production Support
+// If Local (file://), use absolute remote URL.
+// If Hosted (http/https), use relative path to use Proxy (cloud functions) and avoid CORS.
+const isLocal = window.location.protocol === 'file:';
+const API_BASE = isLocal ? 'https://tanzhen.848880.xyz' : '';
+const API_URL = API_BASE + '/api/status/batch';
+const API_URL_SITES = API_BASE + '/api/sites/status';
 
 // Refresh Intervals (ms)
 const REFRESH_INTERVAL = 3000; // Fetch from API every 3s
@@ -528,7 +531,6 @@ function calculateDisplayMetrics() {
         server._displayNetworkOut = (server.network_out || state.NetOutSpeed || 0) + noiseOut;
     });
 }
-
 
 // initialize
 initDataFetcher();
