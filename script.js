@@ -1,102 +1,22 @@
-/* ========== Ghost Probe Logic ========== */
+/*
+    Ghost Probe Script
+    Handles real-time data fetching, rendering, and animations.
+*/
 
-const IS_LOCAL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.hostname === '';
+// Configuration
+// You can switch to mock data if API is down
+const API_URL = 'https://tanzhen.848880.xyz/api/status/batch'; // Use local proxy or direct URL
+const API_URL_SITES = 'https://tanzhen.848880.xyz/api/sites/status';
+// const API_URL = 'http://localhost:8787/api/status/batch'; // Local Dev
 
-// If prod (Cloudflare Pages), use relative path (proxied).
-// If local, use full URL.
-const API_BASE = IS_LOCAL ? 'https://tanzhen.848880.xyz' : '';
+// Refresh Intervals (ms)
+const REFRESH_INTERVAL = 3000; // Fetch from API every 3s
 
-const API_URL = `${API_BASE}/api/status/batch`;
-const REFRESH_INTERVAL = 10000; // 10 seconds
-
-// Fake data to mimic the original site's look
+// Mock Data for Testing
 const MOCK_SERVERS = [
-    {
-        name: "Ghost Node 01",
-        type: "KVM-JP",
-        online: true,
-        cpu: 45,
-        memory_used: 1024, memory_total: 2048,
-        hdd_used: 20, hdd_total: 50,
-        network_in: 5000000, network_out: 1200000,
-        uptime: 3600 * 24 * 15 // 15 days
-    },
-    {
-        name: "Meat Pot Core",
-        type: "DEDICATED-US",
-        online: true,
-        cpu: 12,
-        memory_used: 8192, memory_total: 16384,
-        hdd_used: 500, hdd_total: 1000,
-        network_in: 1024, network_out: 2048,
-        uptime: 3600 * 24 * 365 // 1 year
-    },
-    {
-        name: "Abyss Gateway",
-        type: "LXC-HK",
-        online: false, // Simulate offline
-        cpu: 0,
-        memory_used: 0, memory_total: 512,
-        hdd_used: 0, hdd_total: 10,
-        network_in: 0, network_out: 0,
-        uptime: 0
-    }
+    { Name: 'Unknown', Tag: 'CN', online: false },
+    { Name: 'Test-Server-1', Tag: 'HK', online: true, cpu: 45, memory_used: 1024, memory_total: 2048, hdd_used: 20, hdd_total: 100 },
 ];
-
-document.addEventListener('DOMContentLoaded', () => {
-    initParticles();
-    initDataFetcher();
-    setupInteractions();
-});
-
-/* ========== Interactions ========== */
-function setupInteractions() {
-    // 1. Grid/List Toggle
-    const btnGrid = document.getElementById('btn-grid');
-    const grid = document.getElementById('server-grid');
-    if (btnGrid && grid) {
-        btnGrid.addEventListener('click', () => {
-            grid.classList.toggle('list-view');
-            // Update icon based on state? 
-            // For now, simple toggle functionality as requested.
-        });
-    }
-
-    // 2. Play/Pause
-    const btnPlay = document.getElementById('btn-play');
-    let isPaused = false;
-    if (btnPlay) {
-        btnPlay.addEventListener('click', () => {
-            isPaused = !isPaused;
-            btnPlay.innerHTML = isPaused
-                ? '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="none"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>' // Pause icon
-                : '<svg viewBox="0 0 24 24" width="20" height="20" stroke="currentColor" fill="currentColor"><path d="M5 3l14 9-14 9V3z"></path></svg>'; // Play icon
-
-            // Toggle data fetching logic here if needed
-            // For mock mode, we just visually indicate pause for now
-        });
-    }
-
-    // 3. Theme & User (Placeholders matching original typical behavior)
-    const btnTheme = document.getElementById('btn-theme');
-    if (btnTheme) {
-        btnTheme.addEventListener('click', () => {
-            alert("Dark Mode implies 'Ghost', light mode is for the weak.");
-        });
-    }
-
-    const btnUser = document.getElementById('btn-user');
-    if (btnUser) {
-        btnUser.addEventListener('click', () => {
-            alert("Admin login: Access Denied");
-        });
-    }
-}
-
-
-/* ========== Data Fetching & Rendering ========== */
-/* ========== Data Fetching & Rendering ========== */
-const API_URL_SITES = `${API_BASE}/api/sites/status`; // Website monitor API
 
 /* ========== Data Fetching & Rendering ========== */
 async function initDataFetcher() {
@@ -114,13 +34,14 @@ async function initDataFetcher() {
         // UI Refresh Interval (Fast - 2s) for Random Noise
         setInterval(() => {
             if (cachedServerData.length > 0) {
+                if (typeof calculateDisplayMetrics === 'function') calculateDisplayMetrics();
                 renderServers(cachedServerData);
+                updateHeaderStats();
             }
         }, 2000);
     }
 }
 
-// Update Clock
 // Update Clock
 setInterval(updateClock, 1000);
 updateClock();
@@ -147,6 +68,8 @@ async function fetchData() {
         else if (Array.isArray(data)) servers = data;
 
         cachedServerData = servers;
+        // Initial calculation and render
+        if (typeof calculateDisplayMetrics === 'function') calculateDisplayMetrics();
         renderServers(cachedServerData);
         updateHeaderStats();
     } catch (error) {
@@ -224,6 +147,26 @@ function updateHeaderStats() {
     const totalOffline = offlineServersArr.length + offlineSitesArr.length;
     const elOffline = document.getElementById('stat-offline');
     if (elOffline) elOffline.innerText = totalOffline;
+
+    // 4. Network Stats (Total Upload/Download)
+    let totalNetIn = 0;
+    let totalNetOut = 0;
+
+    // Sum from all cached servers using the SYNCED display values
+    cachedServerData.forEach(s => {
+        // Use synced values (or fallback to 0/raw if not yet calc'd)
+        const netIn = (typeof s._displayNetworkIn !== 'undefined') ? s._displayNetworkIn : (Number(s.network_in) || 0);
+        const netOut = (typeof s._displayNetworkOut !== 'undefined') ? s._displayNetworkOut : (Number(s.network_out) || 0);
+
+        totalNetIn += netIn;
+        totalNetOut += netOut;
+    });
+
+    const elNetUp = document.getElementById('stat-network-up');
+    const elNetDown = document.getElementById('stat-network-down');
+
+    if (elNetUp) elNetUp.innerText = formatBytes(totalNetOut) + '/s';
+    if (elNetDown) elNetDown.innerText = formatBytes(totalNetIn) + '/s';
 }
 
 function renderServers(data) {
@@ -354,12 +297,15 @@ function createServerCard(server) {
         const diskTotal = m.disk ? m.disk.total : 1;
         hdd = diskTotal > 0 ? (diskUsed / diskTotal) * 100 : 0;
 
-        // Network Noise: 10 - 1000 B/s
-        const noiseIn = Math.floor(Math.random() * 991) + 10;
-        const noiseOut = Math.floor(Math.random() * 991) + 10;
-
-        netIn = (m.network ? m.network.download_speed : 0) + noiseIn;
-        netOut = (m.network ? m.network.upload_speed : 0) + noiseOut;
+        // Use Pre-calculated Display Metrics if available (Sync with header)
+        if (typeof server._displayNetworkIn !== 'undefined') {
+            netIn = server._displayNetworkIn;
+            netOut = server._displayNetworkOut;
+        } else {
+            // Fallback if not yet calculated
+            netIn = (m.network ? m.network.download_speed : 0);
+            netOut = (m.network ? m.network.upload_speed : 0);
+        }
 
         // Total Transfer
         totalIn = m.network ? m.network.total_download : 0;
@@ -384,12 +330,15 @@ function createServerCard(server) {
         const hddTotal = server.hdd_total || state.DiskTotal || 1;
         hdd = (hddUsed / hddTotal) * 100;
 
-        // Network Noise: 10 - 1000 B/s
-        const noiseIn = Math.floor(Math.random() * 991) + 10;
-        const noiseOut = Math.floor(Math.random() * 991) + 10;
-
-        netIn = (server.network_in || state.NetInSpeed || 0) + noiseIn;
-        netOut = (server.network_out || state.NetOutSpeed || 0) + noiseOut;
+        // Use Pre-calculated Display Metrics if available (Sync with header)
+        if (typeof server._displayNetworkIn !== 'undefined') {
+            netIn = server._displayNetworkIn;
+            netOut = server._displayNetworkOut;
+        } else {
+            // Fallback
+            netIn = (server.network_in || state.NetInSpeed || 0);
+            netOut = (server.network_out || state.NetOutSpeed || 0);
+        }
 
         // Total Transfer (Fallback)
         totalIn = server.transfer_in || state.TransferIn || 0;
@@ -457,7 +406,7 @@ function createServerCard(server) {
                 </div>
                 <div class="net-item" style="text-align: right;">
                     <span class="traffic-badge">↓ ${formatBytes(netIn)}/s</span>
-                    <span>吸入</span>
+                    <span>射入</span>
                 </div>
             </div>
             <!-- Total Transfer Row (New) -->
@@ -468,7 +417,7 @@ function createServerCard(server) {
                 </div>
                 <div class="net-item" style="text-align: right;">
                     <span class="traffic-badge">${formatBytes(totalIn)}</span>
-                    <span>总吸入</span>
+                    <span>总射入</span>
                 </div>
             </div>
 
@@ -563,3 +512,24 @@ function updateClock() {
     const now = new Date();
     clock.innerText = now.toLocaleTimeString('en-GB'); // 24-hour format
 }
+
+
+// Helper to calculate display metrics (including noise) for sync
+function calculateDisplayMetrics() {
+    cachedServerData.forEach(server => {
+        const state = server.status || {};
+
+        // Network Noise: 10 - 1000 B/s
+        const noiseIn = Math.floor(Math.random() * 991) + 10;
+        const noiseOut = Math.floor(Math.random() * 991) + 10;
+
+        // Calculate and store on server object for consistency between Card and Header
+        server._displayNetworkIn = (server.network_in || state.NetInSpeed || 0) + noiseIn;
+        server._displayNetworkOut = (server.network_out || state.NetOutSpeed || 0) + noiseOut;
+    });
+}
+
+
+// initialize
+initDataFetcher();
+initParticles();
