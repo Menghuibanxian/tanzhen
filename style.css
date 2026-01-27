@@ -1,3 +1,8 @@
+/* ========== Global Reset ========== */
+* {
+    box-sizing: border-box;
+}
+
 /* ========== Ghost Green Theme Config ========== */
 :root {
     --ghost-primary: #66ffb3;
@@ -860,9 +865,141 @@ body {
         opacity: 0;
     }
 }
+
+/* ========== 手机端适配终极修复 ========== */
 @media screen and (max-width: 768px) {
-    #status-bar,
+
+    /* 1. 修复点击错位：取消 body 缩放 */
+    body {
+        zoom: 1 !important;
+        -moz-transform: none !important;
+        background-attachment: scroll !important;
+        /* 修复某些手机背景滚动卡顿 */
+    }
+
+    /* 2. 状态栏布局与点击修复 */
+    #status-bar {
+        display: flex !important;
+        height: auto;
+        min-height: 60px;
+        padding: 5px 10px;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        /* 两端对齐 */
+        z-index: 9999 !important;
+    }
+
+    /* 3. 增大按钮触控面积 */
+    .nav-btn {
+        padding: 12px !important;
+        /* 主要是这里，让手指更容易点中 */
+        margin-left: 5px;
+        background: rgba(255, 255, 255, 0.05);
+        /* 稍微给点背景色确认点击区域，可删 */
+        border-radius: 8px;
+    }
+
+    /* 4. 优化中间文字，防止遮挡按钮 - SINGLE ROW LAYOUT */
+    .status-center {
+        display: flex !important;
+        flex-wrap: nowrap;
+        /* 强制不换行 */
+        width: 100%;
+        gap: 4px;
+        /* 减小间距以放下5个 */
+        margin-top: 10px;
+        padding: 0 2px;
+        order: 3;
+        pointer-events: none;
+        justify-content: space-between;
+        /* 两端对齐拉伸 */
+    }
+
+    /* 优化单个数据卡片 */
+    .status-item {
+        flex: 1;
+        /* 均分宽度 */
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+
+        background: rgba(10, 26, 21, 0.6);
+        border: 1px solid rgba(102, 255, 179, 0.15);
+        border-radius: 6px;
+        padding: 6px 2px;
+        /* 紧凑内边距 */
+        margin: 0;
+        min-width: 0;
+        /* 允许压缩 */
+        pointer-events: auto;
+    }
+
+    /* 针对图标微调 */
+    .status-item .icon {
+        font-size: 1rem;
+        /* 稍微缩小图标 */
+        margin-bottom: 2px;
+        opacity: 0.9;
+    }
+
+    /* 针对文字微调 */
+    .status-text {
+        align-items: center;
+        width: 100%;
+        overflow: hidden;
+        /* 防止溢出 */
+    }
+
+    /* 隐藏标题 */
+    .status-text div:first-child {
+        display: none !important;
+    }
+
+    /* 核心数字 */
+    .status-text .sub-text {
+        font-family: 'Consolas', monospace;
+        font-size: 0.75rem !important;
+        /* 字体稍微缩小以防换行 */
+        color: #fff;
+        font-weight: bold;
+        line-height: 1.1;
+        margin-top: 0;
+        white-space: nowrap;
+        /* 不允许文字换行 */
+    }
+
+    /* 5. 隐藏底部栏 */
     .footer-dock {
         display: none !important;
+    }
+
+    /* 6. 内容区域单独缩放 */
+    .container {
+        zoom: 0.85;
+        padding: 10px;
+    }
+
+    /* Gauge Fix */
+    .gauge-item {
+        transform: scale(0.9);
+        margin: 0;
+    }
+
+    /* [FIX] Hide Right-side Buttons (Grid, Moon, User, Play) on Mobile */
+    .status-right {
+        display: none !important;
+    }
+
+    /* [FIX] Prevent horizontal scroll */
+    #particles {
+        width: 100vw !important;
+        height: 100vh !important;
+    }
+
+    /* [FIX] Header Overlap: push content down to clear wrapped header */
+    .main-offset {
+        margin-top: 130px !important;
+        /* Slightly reduced as single row is shorter */
     }
 }

@@ -3,11 +3,10 @@
     Handles real-time data fetching, rendering, and animations.
 */
 
-// Configuration
-// Dynamic API URL for Local vs Proxy/Production Support
-// If Local (file://), use absolute remote URL.
-// If Hosted (http/https), use relative path to use Proxy (cloud functions) and avoid CORS.
-const isLocal = window.location.protocol === 'file:';
+// [FIX] Improved Local Detection
+const isLocal = window.location.protocol === 'file:' ||
+    window.location.hostname === 'localhost' ||
+    window.location.hostname === '127.0.0.1';
 const API_BASE = isLocal ? 'https://tanzhen.848880.xyz' : '';
 const API_URL = API_BASE + '/api/status/batch';
 const API_URL_SITES = API_BASE + '/api/sites/status';
@@ -27,14 +26,17 @@ async function initDataFetcher() {
         console.log("Forcing Mock Data Mode");
         renderServers(MOCK_SERVERS);
     } else {
+        // Start immediately without await to unblock UI
         Promise.all([fetchData(), fetchSitesData()]);
+
         // API Fetch Interval (Slow)
         setInterval(() => {
             fetchData();
             fetchSitesData();
         }, REFRESH_INTERVAL);
 
-        // UI Refresh Interval (Fast - 2s) for Random Noise
+        // UI Refresh Interval (Fast - 2s) for Random Noise updating
+        // This keeps the noise changing even if API data is static
         setInterval(() => {
             if (cachedServerData.length > 0) {
                 if (typeof calculateDisplayMetrics === 'function') calculateDisplayMetrics();
@@ -57,7 +59,8 @@ let cachedSiteData = [];   // Store latest site data
 
 async function fetchData() {
     try {
-        const response = await fetch(API_URL);
+        // [FIX] Add timestamp to prevent caching on mobile/Via
+        const response = await fetch(API_URL + '?t=' + Date.now());
         if (!response.ok) throw new Error('Network response was not ok');
         const data = await response.json();
 
@@ -67,10 +70,13 @@ async function fetchData() {
         else if (Array.isArray(data)) servers = data;
 
         cachedServerData = servers;
-        // Initial calculation and render
-        if (typeof calculateDisplayMetrics === 'function') calculateDisplayMetrics();
-        renderServers(cachedServerData);
+
+        // [FIX] Immediate Update: Don't wait for the next interval
+        // This ensures the 0 B/s state is replaced as soon as data arrives.
+        calculateDisplayMetrics();
         updateHeaderStats();
+        renderServers(cachedServerData);
+
     } catch (error) {
         console.log("Server Fetch failed:", error);
     }
@@ -78,7 +84,8 @@ async function fetchData() {
 
 async function fetchSitesData() {
     try {
-        const response = await fetch(API_URL_SITES);
+        // [FIX] Add timestamp
+        const response = await fetch(API_URL_SITES + '?t=' + Date.now());
         if (!response.ok) throw new Error('Sites Network response was not ok');
         const data = await response.json();
 
@@ -88,7 +95,7 @@ async function fetchSitesData() {
         else if (Array.isArray(data)) sites = data;
 
         cachedSiteData = sites; // Cache the normalized array
-        renderSites(sites);     // Pass normalized array to renderSites (and update renderSites to expect it or handle it)
+        renderSites(sites);     // Pass normalized array to renderSites
         updateHeaderStats();
     } catch (error) {
         console.log("Sites Fetch failed:", error);
@@ -97,15 +104,10 @@ async function fetchSitesData() {
 
 /**
  * Helper to determine if a site is "UP" based on API data.
- * Prioritizes 'successful' or 'last_status' fields over status code.
  */
 function isSiteUp(site) {
     if (site.name === 'Pages' && site.last_status_code === 404) return true;
-
-    if (typeof site.successful !== 'undefined') {
-        return site.successful === true;
-    }
-
+    if (typeof site.successful !== 'undefined') return site.successful === true;
     if (site.last_status) {
         const s = String(site.last_status).toUpperCase();
         return s === 'UP' || s === 'SUCCESSFUL' || s === 'TRUE' || s === '1' || s === 'OK';
@@ -144,11 +146,9 @@ function updateHeaderStats() {
 
         // Sum from all cached servers
         cachedServerData.forEach(s => {
-            const netIn = (typeof s._displayNetworkIn !== 'undefined') ? s._displayNetworkIn : (Number(s.network_in) || 0);
-            const netOut = (typeof s._displayNetworkOut !== 'undefined') ? s._displayNetworkOut : (Number(s.network_out) || 0);
-
-            totalNetIn += netIn;
-            totalNetOut += netOut;
+            // [FIX] Robust casting to Number to prevent NaN
+            totalNetIn += Number(s._displayNetworkIn) || 0;
+            totalNetOut += Number(s._displayNetworkOut) || 0;
         });
 
         const elNetUp = document.getElementById('stat-network-up');
@@ -164,15 +164,11 @@ function updateHeaderStats() {
 function renderServers(data) {
     const grid = document.getElementById('server-grid');
     if (!grid) return;
-
     const servers = Array.isArray(data) ? data : Object.values(data);
-
     if (servers.length === 0) {
         grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">No servers found online.</div>';
         return;
     }
-
-    // Pass data directly, createServerCard handles normalization
     grid.innerHTML = servers.map(server => createServerCard(server)).join('');
 }
 
@@ -188,7 +184,6 @@ function renderSites(data) {
         if (container) container.style.display = 'none';
         return;
     }
-
     if (container) container.style.display = 'block';
 
     grid.innerHTML = sites.map(site => {
@@ -205,7 +200,6 @@ function renderSites(data) {
                     <div class="site-name">${site.name}</div>
                     <div class="status-dot ${isUp ? 'online' : 'offline'}"></div>
                 </div>
-                
                 <div class="site-stats-row">
                     <div class="site-stat-item">
                         <span class="site-stat-label">射入量</span>
@@ -220,11 +214,8 @@ function renderSites(data) {
                         <span>${new Date(site.last_checked * 1000).toLocaleTimeString()}</span>
                     </div>
                 </div>
-
                 <div class="site-stat-label" style="margin-top: 5px;">24h高潮记录</div>
-                <div class="site-history">
-                    ${historyBarHtml}
-                </div>
+                <div class="site-history">${historyBarHtml}</div>
             </div>
         `;
     }).join('');
@@ -259,46 +250,37 @@ function createServerCard(server) {
     if (server.server && server.metrics) {
         const s = server.server;
         const m = server.metrics;
-
         name = s.name || 'Unknown';
         type = s.description || 'Nezha Node';
         isOnline = !server.error;
-
         cpu = m.cpu ? m.cpu.usage_percent : 0;
         const memUsed = m.memory ? m.memory.used : 0;
         const memTotal = m.memory ? m.memory.total : 1;
         ram = memTotal > 0 ? (memUsed / memTotal) * 100 : 0;
-
         const diskUsed = m.disk ? m.disk.used : 0;
         const diskTotal = m.disk ? m.disk.total : 1;
         hdd = diskTotal > 0 ? (diskUsed / diskTotal) * 100 : 0;
 
-        // Use Pre-calculated Display Metrics if available (Sync with header)
         if (typeof server._displayNetworkIn !== 'undefined') {
             netIn = server._displayNetworkIn;
             netOut = server._displayNetworkOut;
         } else {
-            // Fallback
             netIn = (m.network ? m.network.download_speed : 0);
             netOut = (m.network ? m.network.upload_speed : 0);
         }
-
         totalIn = m.network ? m.network.total_download : 0;
         totalOut = m.network ? m.network.total_upload : 0;
         uptime = m.uptime || 0;
     } else {
-        // Flat Structure (Mock / Other API variants)
+        // Flat Structure
         name = server.name || server.Name || 'Unknown';
         type = server.type || server.Tag || 'Unknown';
         isOnline = server.online !== false;
-
         const state = server.State || {};
         cpu = server.cpu || state.CPU || 0;
-
         const memUsed = server.memory_used || state.MemUsed || 0;
         const memTotal = server.memory_total || state.MemTotal || 1;
         ram = (memUsed / memTotal) * 100;
-
         const hddUsed = server.hdd_used || state.DiskUsed || 0;
         const hddTotal = server.hdd_total || state.DiskTotal || 1;
         hdd = (hddUsed / hddTotal) * 100;
@@ -310,20 +292,18 @@ function createServerCard(server) {
             netIn = (server.network_in || state.NetInSpeed || 0);
             netOut = (server.network_out || state.NetOutSpeed || 0);
         }
-
         totalIn = server.transfer_in || state.TransferIn || 0;
         totalOut = server.transfer_out || state.TransferOut || 0;
         uptime = server.uptime || state.Uptime || 0;
     }
 
     const statusClass = isOnline ? 'online' : 'offline';
-
+    // Flags mapping (omitted for brevity, same as before)
     const flags = {
         'JP': '🇯🇵', 'US': '🇺🇸', 'HK': '🇭🇰', 'CN': '🇨🇳', 'SG': '🇸🇬', 'KR': '🇰🇷', 'DE': '🇩🇪', 'UK': '🇬🇧',
         '日本': '🇯🇵', '美国': '🇺🇸', '香港': '🇭🇰', '中国': '🇨🇳', '新加坡': '🇸🇬', '韩国': '🇰🇷', '德国': '🇩🇪', '英国': '🇬🇧',
         '台湾': '🇹🇼', 'TW': '🇹🇼'
     };
-
     let flag = '🏳️';
     const searchString = (name + " " + type).toUpperCase();
     for (const [key, value] of Object.entries(flags)) {
@@ -339,56 +319,31 @@ function createServerCard(server) {
         const targetDate = new Date(dateMatch[1]);
         const now = new Date();
         const diffTime = targetDate - now;
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        daysRemaining = diffDays > 0 ? diffDays + '天' : '已过期';
+        daysRemaining = (Math.ceil(diffTime / (1000 * 60 * 60 * 24)) > 0) ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + '天' : '已过期';
     }
 
     return `
         <div class="server-card ${statusClass}-card">
             <div class="card-header">
-                <div class="server-info-left">
-                    <span class="flag-icon">${flag}</span>
-                    <div>
-                        <h3 class="server-name">${name}</h3>
-                    </div>
-                </div>
+                <div class="server-info-left"><span class="flag-icon">${flag}</span><div><h3 class="server-name">${name}</h3></div></div>
                 <div class="status-dot ${statusClass}"></div>
             </div>
-            
             <div class="gauges-row">
                 ${createGauge(cpu, '敏感度', 'var(--ghost-accent)')}
                 ${createGauge(ram, '扩张度', '#2196F3')}
                 ${createGauge(hdd, '填充度', '#ff9800')}
             </div>
-            
             <div class="net-stats">
-                <div class="net-item">
-                    <span>喷水</span>
-                    <span class="traffic-badge">↑ ${formatBytes(netOut)}/s</span>
-                </div>
-                <div class="net-item" style="text-align: right;">
-                    <span class="traffic-badge">↓ ${formatBytes(netIn)}/s</span>
-                    <span>射入</span>
-                </div>
+                <div class="net-item"><span>喷水</span><span class="traffic-badge">↑ ${formatBytes(netOut)}/s</span></div>
+                <div class="net-item" style="text-align: right;"><span class="traffic-badge">↓ ${formatBytes(netIn)}/s</span><span>射入</span></div>
             </div>
             <div class="net-stats" style="border:none; padding-top:2px; margin-top:0;">
-                <div class="net-item">
-                    <span>总喷水</span>
-                    <span class="traffic-badge">${formatBytes(totalOut)}</span>
-                </div>
-                <div class="net-item" style="text-align: right;">
-                    <span class="traffic-badge">${formatBytes(totalIn)}</span>
-                    <span>总射入</span>
-                </div>
+                <div class="net-item"><span>总喷水</span><span class="traffic-badge">${formatBytes(totalOut)}</span></div>
+                <div class="net-item" style="text-align: right;"><span class="traffic-badge">${formatBytes(totalIn)}</span><span>总射入</span></div>
             </div>
-
             <div class="net-stats" style="border:none; padding-top:5px; margin-top:5px; border-top: 1px dashed rgba(102, 255, 179, 0.1);">
-                <div class="net-item" style="opacity: 0.7; font-size: 0.6rem;">
-                     <span>高潮倒计时: ${daysRemaining}</span>
-                </div>
-                <div class="net-item" style="text-align: right;">
-                    连续调教: ${formatUptime(uptime)}
-                </div>
+                <div class="net-item" style="opacity: 0.7; font-size: 0.6rem;"><span>高潮倒计时: ${daysRemaining}</span></div>
+                <div class="net-item" style="text-align: right;">连续调教: ${formatUptime(uptime)}</div>
             </div>
         </div>
     `;
@@ -408,7 +363,6 @@ function formatUptime(seconds) {
     const d = Math.floor(seconds / (3600 * 24));
     const h = Math.floor(seconds % (3600 * 24) / 3600);
     const m = Math.floor(seconds % 3600 / 60);
-
     if (d > 0) return `${d}d ${h}h`;
     if (h > 0) return `${h}h ${m}m`;
     return `${m}m`;
@@ -421,7 +375,6 @@ function initParticles() {
         container.id = 'particles';
         document.body.prepend(container);
     }
-
     const gradients = [
         'radial-gradient(circle, #66ffb3 0%, #44cc88 70%, transparent 100%)',
         'radial-gradient(circle, #55cc99 0%, #339966 70%, transparent 100%)',
@@ -439,7 +392,6 @@ function initParticles() {
         const duration = Math.random() * (maxDuration - minDuration) + minDuration;
         const dx = (Math.random() - 0.5) * 2;
         const delay = Math.random() * 2;
-
         particle.style.width = `${size}px`;
         particle.style.height = `${size}px`;
         particle.style.left = `${Math.random() * 100}%`;
@@ -450,7 +402,6 @@ function initParticles() {
         container.appendChild(particle);
         particle.addEventListener('animationend', () => particle.remove());
     }
-
     setInterval(createParticle, spawnInterval);
     for (let i = 0; i < 10; i++) createParticle();
 }
@@ -462,31 +413,30 @@ function updateClock() {
     clock.innerText = now.toLocaleTimeString('en-GB');
 }
 
-// Helper to calculate display metrics (including noise) for sync
+// [FIX] Robust calculation logic for mobile/nested compatibility
 function calculateDisplayMetrics() {
+    if (!cachedServerData || cachedServerData.length === 0) return;
+
     cachedServerData.forEach(server => {
         let netIn = 0;
         let netOut = 0;
 
-        // Handle Nested Structure (Real API usually)
-        if (server.server && server.metrics && server.metrics.network) {
-            netIn = server.metrics.network.download_speed;
-            netOut = server.metrics.network.upload_speed;
-        }
-        // Handle Flat/Mock Structure
-        else {
-            const state = server.status || {};
-            netIn = server.network_in || state.NetInSpeed || 0;
-            netOut = server.network_out || state.NetOutSpeed || 0;
+        // [ENHANCE] Handle nested structure safely
+        if (server.metrics && server.metrics.network) {
+            netIn = Number(server.metrics.network.download_speed) || 0;
+            netOut = Number(server.metrics.network.upload_speed) || 0;
+        } else {
+            const state = server.State || server.status || {};
+            netIn = Number(server.network_in || state.NetInSpeed) || 0;
+            netOut = Number(server.network_out || state.NetOutSpeed) || 0;
         }
 
-        // Network Noise: 10 - 1000 B/s
+        // Noise
         const noiseIn = Math.floor(Math.random() * 991) + 10;
         const noiseOut = Math.floor(Math.random() * 991) + 10;
 
-        // Calculate and store on server object for consistency between Card and Header
-        server._displayNetworkIn = (Number(netIn) || 0) + noiseIn;
-        server._displayNetworkOut = (Number(netOut) || 0) + noiseOut;
+        server._displayNetworkIn = netIn + noiseIn;
+        server._displayNetworkOut = netOut + noiseOut;
     });
 }
 
