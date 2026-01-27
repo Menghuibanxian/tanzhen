@@ -27,7 +27,7 @@ async function initDataFetcher() {
         console.log("Forcing Mock Data Mode");
         renderServers(MOCK_SERVERS);
     } else {
-        await Promise.all([fetchData(), fetchSitesData()]);
+        Promise.all([fetchData(), fetchSitesData()]);
         // API Fetch Interval (Slow)
         setInterval(() => {
             fetchData();
