@@ -331,8 +331,121 @@ body {
 
 .site-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
+    /* [FIX] User requested 4 per row */
     gap: 15px;
+}
+
+/* Responsive */
+/* Responsive */
+@media (max-width: 1200px) {
+
+    /* [FIX] Lowered from 1400px to keep 4-col on 1080p screens */
+    .site-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .site-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .site-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* List View for Sites */
+.site-grid.list-view {
+    grid-template-columns: 1fr !important;
+    max-width: 1200px;
+    /* Match Server Grid List Width */
+    gap: 10px;
+    /* Match Server Grid List Gap */
+    margin: 0 auto;
+    /* [FIX] Center the list view */
+}
+
+/* [FIX] List View Card Style - Compact Horizontal */
+.site-grid.list-view .site-card {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    /* Match Server Card */
+    height: auto;
+    gap: 15px;
+    /* Match Server Card */
+}
+
+.site-grid.list-view .site-header {
+    border-bottom: none !important;
+    margin-bottom: 0 !important;
+    padding-bottom: 0 !important;
+    flex: 0 0 200px;
+    /* Fixed width for name, matches server card header */
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    /* Match Server Card Header */
+    padding-right: 10px;
+    /* Slight padding for dot */
+}
+
+.site-grid.list-view .site-stats-row {
+    flex: 1;
+    margin-bottom: 0 !important;
+    display: flex;
+    justify-content: space-between;
+    /* Match Server Card list-details */
+    align-items: center;
+    padding: 0 20px;
+    /* Match Server Card list-details padding */
+}
+
+.site-grid.list-view .site-stat-item {
+    flex: 1;
+    /* [FIX] Distribute space evenly like server list items? Server items don't have flex:1 but justify-between handles it. */
+    /* Update: Server items have min-width: 80px and are spaced by justify-content: space-between on the container */
+    flex-direction: column;
+    /* Match Server List Item (column) */
+    gap: 2px;
+    align-items: center;
+    min-width: 80px;
+    /* Match Server List Item min-width */
+    text-align: center;
+    /* Ensure text is centered */
+}
+
+/* Fix Label Order: Server has Value first, then Label. Site has Label then Value. */
+.site-grid.list-view .site-stat-label {
+    margin-bottom: 0 !important;
+    font-size: 0.7rem;
+    /* Match Server List Label */
+    opacity: 0.7;
+    order: 2;
+    /* Force Label to be below Value */
+}
+
+/* Server List has: Value (bold), then Label (small).
+   Site currently has: Label (small), then Value (bold).
+   Let's swap them via flex order to match server list?
+   Server List HTML: span.list-value, span.list-label.
+   Site HTML: span.site-stat-label, div (value).
+   So Label is first in HTML. We need order: 2 for label.
+*/
+
+.site-grid.list-view .site-stat-label {
+    order: 2;
+}
+
+/* Hide History Bar and Label in List View */
+.site-grid.list-view .site-history,
+.site-grid.list-view .site-history-label {
+    display: none;
 }
 
 .site-card {
@@ -364,10 +477,11 @@ body {
     margin-bottom: 10px;
 }
 
+.server-name,
 .site-name {
-    font-weight: bold;
     font-size: 1rem;
-    color: #fff;
+    font-weight: bold;
+    margin: 0;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -984,11 +1098,50 @@ body.light-theme .status-dot.unknown {
     box-shadow: none;
 }
 
+/* [FIX] Light Theme Support for List View & Header/Footer */
+body.light-theme .list-value {
+    color: #000;
+}
+
+body.light-theme .list-label,
+body.light-theme .site-stat-label {
+    color: #555;
+}
+
+body.light-theme .site-stat-item div {
+    color: #000 !important;
+}
+
+/* Header Stats */
+body.light-theme .status-center,
+body.light-theme .status-text {
+    color: #333;
+}
+
+body.light-theme .status-text .sub-text {
+    color: #666;
+}
+
+/* Footer Buttons */
+body.light-theme .dock-btn {
+    color: #333;
+    border-color: #ccc;
+    background: rgba(255, 255, 255, 0.5);
+}
+
+body.light-theme .dock-btn:hover {
+    color: var(--ghost-primary);
+    border-color: var(--ghost-primary);
+    background: rgba(0, 136, 85, 0.1);
+}
+
 /* ========== Detailed List View ========== */
 .server-grid.list-view {
     grid-template-columns: 1fr !important;
     max-width: 1200px;
     gap: 10px;
+    margin: 0 auto;
+    /* [FIX] Center the list view */
 }
 
 .server-grid.list-view .server-card {
@@ -1047,6 +1200,7 @@ body.light-theme .status-dot.unknown {
 .list-value {
     font-weight: bold;
 }
+
 /* ========== Unknown Status (Gray) ========== */
 .status-dot.unknown {
     background-color: #999;
@@ -1067,4 +1221,3 @@ body.light-theme .status-dot.unknown {
 .server-card.unknown-card .server-name {
     color: #ccc;
 }
-

@@ -42,13 +42,24 @@ function initControlButtons() {
     if (btnGrid) {
         btnGrid.addEventListener('click', () => {
             isListView = !isListView;
+
+            // Toggle Server Grid
             const grid = document.getElementById('server-grid');
             if (grid) {
                 if (isListView) grid.classList.add('list-view');
                 else grid.classList.remove('list-view');
             }
+
+            // Toggle Site Grid
+            const siteGrid = document.getElementById('site-grid');
+            if (siteGrid) {
+                if (isListView) siteGrid.classList.add('list-view');
+                else siteGrid.classList.remove('list-view');
+            }
+
             // Re-render immediately to switch layouts
             renderServers(cachedServerData);
+            renderSites(cachedSiteData);
         });
     }
 
@@ -320,8 +331,11 @@ function renderSites(data) {
             return `
             <div class="site-card">
                  <div class="site-header" style="border-bottom: 1px solid rgba(102, 255, 179, 0.1); padding-bottom: 8px; margin-bottom: 8px;">
-                     <div class="site-name" style="font-size: 1.1rem;">${site.name}</div>
-                     <span class="status-dot ${isUp ? 'online' : 'offline'}"></span>
+                     <div class="site-info-left" style="display:flex; align-items:center; gap:8px;">
+                        <span class="flag-icon" style="visibility:hidden; font-size:1rem;">🏳️</span>
+                        <div class="site-name">${site.name}</div>
+                     </div>
+                     <div class="status-dot ${isUp ? 'online' : 'offline'}"></div>
                  </div>
                  
                  <div class="site-stats-row" style="display: flex; justify-content: space-between; text-align: center; margin-bottom: 12px; font-size: 0.85rem;">
@@ -339,7 +353,7 @@ function renderSites(data) {
                     </div>
                  </div>
 
-                 <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-bottom: 5px;">24h高潮记录</div>
+                 <div class="site-history-label" style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-bottom: 5px;">24h高潮记录</div>
                  <!-- 24h Record Bar -->
                  <div class="site-history">
                     ${historyHtml}
