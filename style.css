@@ -185,6 +185,7 @@ body {
     font-size: 0.8rem;
 }
 
+/* [RESTORED] Show top-right buttons as requested */
 .status-right {
     display: flex;
     gap: 15px;
@@ -271,8 +272,8 @@ body {
 /* ========== Server Grid & Cards ========== */
 .server-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
-    /* Scaled down ~19.5% from 320px */
+    /* [FIX] Force 4 columns */
+    grid-template-columns: repeat(4, 1fr);
     gap: 16px;
     transition: all 0.5s ease;
 }
@@ -799,205 +800,51 @@ body {
     box-shadow: 0 0 10px rgba(102, 255, 179, 0.3);
 }
 
-.exia-progress-bar {
-    height: 100%;
-    width: 0%;
-    background: linear-gradient(90deg, #00cc88, var(--exia-primary));
-    border-radius: 3px;
-    box-shadow: 0 0 15px rgba(102, 255, 179, 0.8);
-    transition: width 0.1s linear;
-}
+@media (max-width: 768px) {
 
-.loading-text {
-    font-size: 1.1rem;
-    color: var(--ghost-primary);
-    text-shadow: 0 0 10px var(--ghost-primary);
-    letter-spacing: 1px;
-    font-weight: bold;
-}
-
-/* Removed subtext class as text is now combined */
-
-@keyframes exiaRotate {
-    0% {
-        transform: rotate(0deg);
+    /* [FIX] Mobile Layout Adjustments */
+    .server-grid {
+        /* Force 1 column on mobile */
+        grid-template-columns: 1fr !important;
+        padding-bottom: 20px;
     }
 
-    100% {
-        transform: rotate(360deg);
-    }
-}
-
-@keyframes exiaPulse {
-    0% {
-        opacity: 0.6;
-        transform: scale(0.8);
-        box-shadow: 0 0 25px var(--exia-primary);
-    }
-
-    100% {
-        opacity: 1;
-        transform: scale(1.1);
-        box-shadow: 0 0 40px var(--exia-primary), 0 0 60px rgba(0, 255, 136, .6);
-    }
-}
-
-/* ========== Floating Particles System (Original from Archive) ========== */
-#particles {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 133.333vw;
-    /* Compensate for body zoom: 0.75 */
-    height: 133.333vh;
-    z-index: 0;
-    pointer-events: none;
-    overflow: hidden;
-    /* Zoom affects fixed elements, so we expand it to cover full viewport */
-}
-
-.particle {
-    position: absolute;
-    background: radial-gradient(circle, #66ffb3 0%, #44cc88 70%, transparent 100%);
-    border-radius: 50%;
-    opacity: 0;
-    animation: float linear forwards;
-    will-change: transform, opacity;
-}
-
-@keyframes float {
-    0% {
-        transform: translateY(0) translateX(0) scale(1);
-        opacity: 0;
-    }
-
-    10% {
-        opacity: 1;
-    }
-
-    90% {
-        opacity: 1;
-    }
-
-    100% {
-        -webkit-transform: translateY(-120vh) translateX(calc(50px * var(--dx))) scale(0.3);
-        transform: translateY(-120vh) translateX(calc(50px * var(--dx))) scale(0.3);
-        opacity: 0;
-    }
-}
-
-/* ========== 手机端适配终极修复 ========== */
-@media screen and (max-width: 768px) {
-
-    /* 1. 修复点击错位：取消 body 缩放 */
-    body {
-        zoom: 1 !important;
-        -moz-transform: none !important;
-        background-attachment: scroll !important;
-        /* 修复某些手机背景滚动卡顿 */
-    }
-
-    /* 2. 状态栏布局与点击修复 */
-    #status-bar {
-        display: flex !important;
+    .status-bar {
+        padding: 0 15px;
         height: auto;
-        min-height: 60px;
-        padding: 5px 10px;
         flex-wrap: wrap;
-        justify-content: space-between;
-        /* 两端对齐 */
-        z-index: 9999 !important;
+        padding-bottom: 10px;
     }
 
-    /* 3. 增大按钮触控面积 */
-    .nav-btn {
-        padding: 12px !important;
-        /* 主要是这里，让手指更容易点中 */
-        margin-left: 5px;
-        background: rgba(255, 255, 255, 0.05);
-        /* 稍微给点背景色确认点击区域，可删 */
-        border-radius: 8px;
+    .nav-title {
+        font-size: 1.1rem;
+        width: 100%;
+        margin-bottom: 5px;
+        text-align: center;
     }
 
-    /* 4. 优化中间文字，防止遮挡按钮 - SINGLE ROW LAYOUT */
+    .status-items-wrapper {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+    }
+
     .status-center {
-        display: flex !important;
-        flex-wrap: nowrap;
-        /* 强制不换行 */
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        /* Force 2 columns */
+        gap: 10px !important;
         width: 100%;
-        gap: 4px;
-        /* 减小间距以放下5个 */
-        margin-top: 10px;
-        padding: 0 2px;
-        order: 3;
-        pointer-events: none;
-        justify-content: space-between;
-        /* 两端对齐拉伸 */
+        padding: 0 10px;
     }
 
-    /* 优化单个数据卡片 */
     .status-item {
-        flex: 1;
-        /* 均分宽度 */
-        display: flex;
-        flex-direction: column;
-        align-items: center;
         justify-content: center;
-
-        background: rgba(10, 26, 21, 0.6);
-        border: 1px solid rgba(102, 255, 179, 0.15);
+        /* Center content */
+        background: rgba(255, 255, 255, 0.05);
         border-radius: 6px;
-        padding: 6px 2px;
-        /* 紧凑内边距 */
-        margin: 0;
-        min-width: 0;
-        /* 允许压缩 */
-        pointer-events: auto;
-    }
-
-    /* 针对图标微调 */
-    .status-item .icon {
-        font-size: 1rem;
-        /* 稍微缩小图标 */
-        margin-bottom: 2px;
-        opacity: 0.9;
-    }
-
-    /* 针对文字微调 */
-    .status-text {
-        align-items: center;
-        width: 100%;
-        overflow: hidden;
-        /* 防止溢出 */
-    }
-
-    /* 隐藏标题 */
-    .status-text div:first-child {
-        display: none !important;
-    }
-
-    /* 核心数字 */
-    .status-text .sub-text {
-        font-family: 'Consolas', monospace;
-        font-size: 0.75rem !important;
-        /* 字体稍微缩小以防换行 */
-        color: #fff;
-        font-weight: bold;
-        line-height: 1.1;
-        margin-top: 0;
-        white-space: nowrap;
-        /* 不允许文字换行 */
-    }
-
-    /* 5. 隐藏底部栏 */
-    .footer-dock {
-        display: none !important;
-    }
-
-    /* 6. 内容区域单独缩放 */
-    .container {
-        zoom: 0.85;
-        padding: 10px;
+        padding: 5px;
     }
 
     /* Gauge Fix */
@@ -1023,3 +870,201 @@ body {
         /* Slightly reduced as single row is shorter */
     }
 }
+
+/* ========== Unknown Status (Gray) ========== */
+.status-dot.unknown {
+    background-color: #7d8590;
+    color: #7d8590;
+    box-shadow: 0 0 5px #7d8590;
+    animation: none;
+}
+
+.status-dot.unknown::after {
+    display: none;
+}
+
+.server-card.unknown-card {
+    border-color: rgba(125, 133, 144, 0.3);
+    opacity: 0.6;
+}
+
+/* ========== Particle Background (Global Fix) ========== */
+#particles {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    z-index: -1;
+    /* Behind everything */
+    pointer-events: none;
+}
+
+.particle {
+    position: absolute;
+    border-radius: 50%;
+    opacity: 0.6;
+}
+
+@keyframes float {
+    0% {
+        transform: translateY(0) translateX(0);
+        opacity: 0;
+    }
+
+    10% {
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: translateY(-120vh) translateX(calc(var(--dx) * 100px));
+        opacity: 0;
+    }
+}
+
+/* ========== Light Theme (Day Mode) ========== */
+body.light-theme {
+    --ghost-bg: #f0f2f5;
+    --ghost-text: #333333;
+    --ghost-primary: #008855;
+    --ghost-secondary: #00cc88;
+    --ghost-accent: #00aa77;
+    --ghost-pattern: none;
+    background-color: var(--ghost-bg) !important;
+    background-image: none !important;
+    color: var(--ghost-text) !important;
+}
+
+body.light-theme .status-bar,
+body.light-theme .footer-dock {
+    background: rgba(255, 255, 255, 0.9);
+    border-top-color: var(--ghost-primary);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+}
+
+body.light-theme .server-card,
+body.light-theme .site-card {
+    background: rgba(255, 255, 255, 0.85);
+    border-color: rgba(0, 0, 0, 0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+    color: #333;
+    backdrop-filter: blur(10px);
+}
+
+body.light-theme .server-name,
+body.light-theme .site-name,
+body.light-theme .nav-title {
+    color: #000;
+    text-shadow: none;
+}
+
+body.light-theme .nav-btn,
+body.light-theme .dock-btn {
+    color: #555;
+    border-color: var(--ghost-primary);
+}
+
+body.light-theme .nav-btn:hover,
+body.light-theme .dock-btn:hover {
+    background: rgba(0, 136, 85, 0.1);
+    color: var(--ghost-primary);
+}
+
+body.light-theme .stat-label,
+body.light-theme .sub-text,
+body.light-theme .gauge-label {
+    color: #666;
+    opacity: 1;
+}
+
+body.light-theme .status-dot.unknown {
+    background-color: #ccc;
+    color: #ccc;
+    box-shadow: none;
+}
+
+/* ========== Detailed List View ========== */
+.server-grid.list-view {
+    grid-template-columns: 1fr !important;
+    max-width: 1200px;
+    gap: 10px;
+}
+
+.server-grid.list-view .server-card {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 20px;
+    height: auto;
+    gap: 15px;
+}
+
+.server-grid.list-view .card-header {
+    margin: 0;
+    border: none;
+    width: 200px;
+    flex-shrink: 0;
+}
+
+/* Hide Grid-Only Elements in List View */
+.server-grid.list-view .gauges-row,
+.server-grid.list-view .net-stats {
+    display: none;
+}
+
+/* Show List-Only Elements */
+.list-details {
+    display: none;
+    flex: 1;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 0.9rem;
+    font-family: Consolas, monospace;
+    color: inherit;
+    padding: 0 20px;
+}
+
+.server-grid.list-view .list-details {
+    display: flex;
+}
+
+.list-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-width: 80px;
+    text-align: center;
+}
+
+.list-label {
+    font-size: 0.7rem;
+    opacity: 0.7;
+    margin-bottom: 2px;
+}
+
+.list-value {
+    font-weight: bold;
+}
+/* ========== Unknown Status (Gray) ========== */
+.status-dot.unknown {
+    background-color: #999;
+    color: #999;
+    box-shadow: none;
+}
+
+.status-dot.unknown::after {
+    animation: none;
+    border-color: #999;
+}
+
+.server-card.unknown-card {
+    border-color: rgba(153, 153, 153, 0.3);
+    opacity: 0.7;
+}
+
+.server-card.unknown-card .server-name {
+    color: #ccc;
+}
+

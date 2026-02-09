@@ -14,11 +14,80 @@ const API_URL_SITES = API_BASE + '/api/sites/status';
 // Refresh Intervals (ms)
 const REFRESH_INTERVAL = 3000; // Fetch from API every 3s
 
+// State Variables
+let isListView = false;
+let isLightMode = localStorage.getItem('theme') === 'light';
+let isPaused = false;
+
 // Mock Data for Testing
 const MOCK_SERVERS = [
     { Name: 'Unknown', Tag: 'CN', online: false },
     { Name: 'Test-Server-1', Tag: 'HK', online: true, cpu: 45, memory_used: 1024, memory_total: 2048, hdd_used: 20, hdd_total: 100 },
 ];
+
+/* ========== Initialization ========== */
+document.addEventListener('DOMContentLoaded', () => {
+    // Apply Theme Immediately
+    if (isLightMode) {
+        document.body.classList.add('light-theme');
+    }
+
+    // Init Buttons
+    initControlButtons();
+});
+
+function initControlButtons() {
+    // 1. Grid/List Toggle
+    const btnGrid = document.getElementById('btn-grid');
+    if (btnGrid) {
+        btnGrid.addEventListener('click', () => {
+            isListView = !isListView;
+            const grid = document.getElementById('server-grid');
+            if (grid) {
+                if (isListView) grid.classList.add('list-view');
+                else grid.classList.remove('list-view');
+            }
+            // Re-render immediately to switch layouts
+            renderServers(cachedServerData);
+        });
+    }
+
+    // 2. Theme Toggle
+    const btnTheme = document.getElementById('btn-theme');
+    if (btnTheme) {
+        btnTheme.addEventListener('click', () => {
+            isLightMode = !isLightMode;
+            if (isLightMode) {
+                document.body.classList.add('light-theme');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.body.classList.remove('light-theme');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
+    }
+
+    // 3. User Login (Handled by <a> tag in HTML)
+
+    // 4. Pause/Resume
+    const btnPlay = document.getElementById('btn-play');
+    const iconPlay = document.getElementById('icon-play');
+    if (btnPlay) {
+        btnPlay.addEventListener('click', () => {
+            isPaused = !isPaused;
+            btnPlay.title = isPaused ? "点击开始刷新" : "点击暂停刷新";
+
+            // Update Icon
+            if (isPaused) {
+                // Show "Play" icon (Triangle) indicating click to resume
+                iconPlay.innerHTML = '<polygon points="5 3 19 12 5 21 5 3"></polygon>';
+            } else {
+                // Show "Pause" icon (Two bars)
+                iconPlay.innerHTML = '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
+            }
+        });
+    }
+}
 
 /* ========== Data Fetching & Rendering ========== */
 async function initDataFetcher() {
@@ -31,14 +100,16 @@ async function initDataFetcher() {
 
         // API Fetch Interval (Slow)
         setInterval(() => {
-            fetchData();
-            fetchSitesData();
+            if (!isPaused) {
+                fetchData();
+                fetchSitesData();
+            }
         }, REFRESH_INTERVAL);
 
         // UI Refresh Interval (Fast - 2s) for Random Noise updating
         // This keeps the noise changing even if API data is static
         setInterval(() => {
-            if (cachedServerData.length > 0) {
+            if (cachedServerData.length > 0 && !isPaused) {
                 if (typeof calculateDisplayMetrics === 'function') calculateDisplayMetrics();
                 renderServers(cachedServerData);
                 updateHeaderStats();
@@ -122,8 +193,8 @@ function updateHeaderStats() {
         const elTotal = document.getElementById('stat-total');
         if (elTotal) elTotal.innerText = totalCount;
 
-        // 2. Online Count
-        const onlineServersArr = cachedServerData.filter(s => !s.error);
+        // 2. Online Count (Must have metrics to be truly online)
+        const onlineServersArr = cachedServerData.filter(s => !s.error && s.metrics);
         const onlineServers = onlineServersArr.length;
         const onlineSitesArr = cachedSiteData.filter(site => isSiteUp(site));
         const onlineSites = onlineSitesArr.length;
@@ -132,8 +203,8 @@ function updateHeaderStats() {
         const elOnline = document.getElementById('stat-online');
         if (elOnline) elOnline.innerText = totalOnline;
 
-        // 3. Offline Count
-        const offlineServersArr = cachedServerData.filter(s => !!s.error);
+        // 3. Offline Count (Error OR No Metrics)
+        const offlineServersArr = cachedServerData.filter(s => !!s.error || !s.metrics);
         const offlineSitesArr = cachedSiteData.filter(site => !isSiteUp(site));
 
         const totalOffline = offlineServersArr.length + offlineSitesArr.length;
@@ -164,9 +235,14 @@ function updateHeaderStats() {
 function renderServers(data) {
     const grid = document.getElementById('server-grid');
     if (!grid) return;
+
+    // Ensure grid has correct class
+    if (isListView) grid.classList.add('list-view');
+    else grid.classList.remove('list-view');
+
     const servers = Array.isArray(data) ? data : Object.values(data);
     if (servers.length === 0) {
-        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">No servers found online.</div>';
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center;">没有发现在线的肉壶。</div>';
         return;
     }
     grid.innerHTML = servers.map(server => createServerCard(server)).join('');
@@ -186,193 +262,257 @@ function renderSites(data) {
     }
     if (container) container.style.display = 'block';
 
-    grid.innerHTML = sites.map((site, index) => {
-        const isUp = isSiteUp(site);
-        const latency = site.last_response_time_ms || 0;
-        // [FIX] 24h Record Bar - Real Data Binding
-        // 1. Get History (Handle numbers or objects)
-        let rawHistory = site.history || [];
+    try {
+        const html = sites.map((site, index) => {
+            const isUp = isSiteUp(site);
+            const latency = site.last_response_time_ms || 0;
+            // [FIX] 24h Record Bar - Real Data Binding
+            // 1. Get History (Handle numbers or objects)
+            let rawHistory = site.history || [];
 
-        // 2. Normalize to array of status/latency (0 = down, >0 = up)
-        const historyData = rawHistory.map(h => {
-            if (typeof h === 'number') return h;
+            // 2. Normalize to array of status/latency (0 = down, >0 = up)
+            const historyData = rawHistory.map(h => {
+                if (typeof h === 'number') return h;
 
-            // [FIX] Priority Check: Status String or Status Code
-            // If explicit "UP" or 200-299 code, force it to be treated as UP (return 1 minimum)
-            if (h.status === 'UP' || (h.status_code >= 200 && h.status_code < 400)) {
-                // Return latency if valid, otherwise return 1ms to ensure Green Bar
-                let lat = h.response_time_ms || h.avg_delay || h.latency || h.delay || h.duration || 1;
-                return lat > 0 ? lat : 1;
-            }
+                // [FIX] Priority Check: Status String or Status Code
+                if (h.status && h.status !== 'Unknown') {
+                    const s = String(h.status).toUpperCase();
+                    if (s === 'DOWN' || s === 'FALSE' || s === '0') return 0; // Explicitly Down
+                    return h.response_time_ms || 1; // Up
+                }
+                if (h.status_code) {
+                    return (h.status_code >= 200 && h.status_code < 300) ? (h.response_time_ms || 1) : 0;
+                }
+                return h.response_time_ms || 0;
+            });
 
-            // Fallback for objects without status text (try latency fields)
-            let val = 0;
-            if (h.response_time_ms !== undefined) val = h.response_time_ms;
-            else if (h.avg_delay !== undefined) val = h.avg_delay;
-            else if (h.latency !== undefined) val = h.latency;
-            else if (h.delay !== undefined) val = h.delay;
-            else if (h.duration !== undefined) val = h.duration;
-
-            return val;
-        });
-
-
-
-        // 3. Generate 24 segments (1 bar = ~1 hour)
-        // API returns data Newest -> Oldest (approx 1 point/min)
-        const maxPoints = 24;
-        const pointsPerHour = 60; // Approx sampling interval
-
-        const displayData = [];
-        for (let i = 0; i < maxPoints; i++) {
-            // i=0 (Leftmost, Oldest) -> i=23 (Rightmost, Newest)
-            // We want index 0 to be NOW. So Rightmost should imply index 0.
-            // Formula: index = (maxPoints - 1 - i) * pointsPerHour
-            const dataIndex = (maxPoints - 1 - i) * pointsPerHour;
-
-            if (dataIndex < historyData.length) {
-                displayData.push(historyData[dataIndex]);
+            // 3. Fill to 24 blocks (assuming 24h history)
+            // If API returns e.g. 60 points, we map them to 24 blocks
+            const totalBlocks = 24; // Visual blocks
+            // Simple strategy: take last N items or sub-sample
+            let blocks = [];
+            if (historyData.length === 0) {
+                blocks = Array(totalBlocks).fill(null); // No data
             } else {
-                displayData.push(null); // No data for this hour
+                // Take last 'totalBlocks' data points
+                const relevantData = historyData.slice(-totalBlocks);
+                // Pad start if not enough data
+                const padding = Array(Math.max(0, totalBlocks - relevantData.length)).fill(null);
+                blocks = [...padding, ...relevantData];
             }
-        }
 
-        const historyBarHtml = displayData.map((val, index) => {
-            const isLast = index === maxPoints - 1;
+            // 4. Generate HTML for blocks
+            const historyHtml = blocks.map(val => {
+                let className = 'history-nodata'; // Default gray
+                if (val !== null) {
+                    className = (val > 0) ? 'active-ok' : 'active-down';
+                }
+                // Tooltip content
+                const tooltip = val === null ? '无数据' : (val > 0 ? `正常 (${val}ms)` : '故障');
+                return `<div class="history-segment ${className}" title="${tooltip}"></div>`;
+            }).join('');
 
-            // State: No Data
-            if (val === null) return `<div class="history-segment history-nodata"></div>`;
 
-            // State: Down (0 latency)
-            if (val === 0) return `<div class="history-segment active-down"></div>`;
+            // Format current time for "射精时间" (Last Check)
+            const now = new Date();
+            const timeStr = now.toTimeString().split(' ')[0]; // HH:MM:SS
 
-            // State: Up (>0 latency)
-            // State: Up (>0 latency)
-            // Render GREEN for both History and Current (matching source panel style)
-            return `<div class="history-segment active-ok"></div>`;
-        }).join('');
-
-        return `
+            return `
             <div class="site-card">
-                <div class="site-header">
-                    <div class="site-name">${site.name}</div>
-                    <div class="status-dot ${isUp ? 'online' : 'offline'}"></div>
-                </div>
-                <div class="site-stats-row">
+                 <div class="site-header" style="border-bottom: 1px solid rgba(102, 255, 179, 0.1); padding-bottom: 8px; margin-bottom: 8px;">
+                     <div class="site-name" style="font-size: 1.1rem;">${site.name}</div>
+                     <span class="status-dot ${isUp ? 'online' : 'offline'}"></span>
+                 </div>
+                 
+                 <div class="site-stats-row" style="display: flex; justify-content: space-between; text-align: center; margin-bottom: 12px; font-size: 0.85rem;">
                     <div class="site-stat-item">
-                        <span class="site-stat-label">射入量</span>
-                        <span>${site.last_status_code ? site.last_status_code + 'mL' : '-'}</span>
+                        <span class="site-stat-label" style="display:block; color:rgba(255,255,255,0.6); margin-bottom:4px;">射入量</span>
+                        <div style="font-weight:bold; color:#fff;">${site.last_status_code || 200}mL</div>
                     </div>
-                    <div class="site-stat-item" style="text-align:center">
-                        <span class="site-stat-label">距离高潮</span>
-                        <span>${latency} ms</span>
+                     <div class="site-stat-item">
+                        <span class="site-stat-label" style="display:block; color:rgba(255,255,255,0.6); margin-bottom:4px;">距离高潮</span>
+                         <div style="font-weight:bold; color:#fff;">${latency} ms</div>
                     </div>
-                    <div class="site-stat-item" style="text-align:right">
-                        <span class="site-stat-label">射精时间</span>
-                        <span>${new Date(site.last_checked * 1000).toLocaleTimeString()}</span>
+                    <div class="site-stat-item">
+                        <span class="site-stat-label" style="display:block; color:rgba(255,255,255,0.6); margin-bottom:4px;">射精时间</span>
+                         <div style="font-weight:bold; color:#fff;">${timeStr}</div>
                     </div>
-                </div>
-                <div class="site-stat-label" style="margin-top: 5px;">24h高潮记录</div>
-                <div class="site-history">${historyBarHtml}</div>
+                 </div>
+
+                 <div style="font-size: 0.8rem; color: rgba(255,255,255,0.6); margin-bottom: 5px;">24h高潮记录</div>
+                 <!-- 24h Record Bar -->
+                 <div class="site-history">
+                    ${historyHtml}
+                 </div>
             </div>
         `;
-    }).join('');
+        }).join('');
+
+        if (grid) grid.innerHTML = html;
+
+    } catch (e) {
+        console.error("Render Sites Failed:", e);
+        if (grid) grid.innerHTML = `<div style="color:red; padsding:20px;">Render Error: ${e.message}</div>`;
+    }
 }
 
-function createGauge(percent, label, color) {
-    const radius = 26;
+
+// [FIX] Helper to safely get nested values
+function getMetric(server, ...keys) {
+    let val = server;
+    for (const key of keys) {
+        if (!val) return 0;
+        val = val[key];
+    }
+    return val;
+}
+
+function createGauge(value, label, color) {
+    const radius = 20;
     const circumference = 2 * Math.PI * radius;
-    const safePercent = Math.min(100, Math.max(0, percent));
-    const offset = circumference - (safePercent / 100) * circumference;
+    const offset = circumference - (value / 100) * circumference;
 
     return `
         <div class="gauge-item">
             <div class="gauge-chart">
-                <svg viewBox="0 0 60 60" class="gauge-svg">
-                    <circle class="gauge-bg" cx="30" cy="30" r="${radius}" stroke-width="5"></circle>
-                    <circle class="gauge-progress" cx="30" cy="30" r="${radius}" stroke-width="5" 
-                            stroke="${color}" stroke-dasharray="${circumference}" 
-                            stroke-dashoffset="${offset}" transform="rotate(-90 30 30)"></circle>
+                <svg class="gauge-svg" viewBox="0 0 50 50">
+                    <circle class="gauge-bg" cx="25" cy="25" r="${radius}" stroke-width="4"></circle>
+                    <circle class="gauge-progress" cx="25" cy="25" r="${radius}" stroke-width="4"
+                        stroke="${color}" stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"></circle>
                 </svg>
-                <div class="gauge-value">${Math.round(safePercent)}%</div>
+                <div class="gauge-value" style="transform: translate(-50%, -50%);">${Math.round(value)}%</div>
             </div>
             <div class="gauge-label">${label}</div>
         </div>
     `;
 }
 
+// [FIX] Robust calculation logic for mobile/nested compatibility
+function calculateDisplayMetrics() {
+    if (!cachedServerData || cachedServerData.length === 0) return;
+
+    cachedServerData.forEach(server => {
+        let netIn = 0;
+        let netOut = 0;
+
+        // [ENHANCE] Handle nested structure safely
+        if (server.metrics && server.metrics.network) {
+            netIn = Number(server.metrics.network.download_speed) || 0;
+            netOut = Number(server.metrics.network.upload_speed) || 0;
+        } else {
+            const state = server.State || server.status || {};
+            netIn = Number(server.network_in || state.NetInSpeed) || 0;
+            netOut = Number(server.network_out || state.NetOutSpeed) || 0;
+        }
+
+        // Noise
+        const noiseIn = Math.floor(Math.random() * 991) + 10;
+        const noiseOut = Math.floor(Math.random() * 991) + 10;
+
+        server._displayNetworkIn = netIn + noiseIn;
+        server._displayNetworkOut = netOut + noiseOut;
+    });
+}
+
+
 function createServerCard(server) {
-    let name, type, isOnline, cpu, ram, hdd, netIn, netOut, totalIn, totalOut, uptime;
+    // 1. Basic Info
+    // [FIX] Handle nested 'server' object from API
+    const basicInfo = server.server || server;
+    const name = basicInfo.Name || basicInfo.name || '未知';
+    const tag = basicInfo.Tag || basicInfo.tag || '';
 
-    // Handle Nested Structure (Real API usually)
-    if (server.server && server.metrics) {
-        const s = server.server;
+    // Flag Logic (Approximate mapping)
+    let flag = "🏳️"; // Default
+    const upperTag = tag.toUpperCase();
+    if (upperTag.includes('HK')) flag = "🇭🇰";
+    else if (upperTag.includes('CN') || upperTag.includes('ZH')) flag = "🇨🇳";
+    else if (upperTag.includes('US')) flag = "🇺🇸";
+    else if (upperTag.includes('SG')) flag = "🇸🇬";
+    else if (upperTag.includes('JP')) flag = "🇯🇵";
+    else if (upperTag.includes('KR')) flag = "🇰🇷";
+
+    // Name-based flag fallback
+    const upperName = name.toUpperCase();
+    if (flag === "🏳️") {
+        if (upperName.includes('香港') || upperName.includes('HK')) flag = "🇭🇰";
+        else if (upperName.includes('中国') || upperName.includes('CN') || upperName.includes('浙江') || upperName.includes('上海') || upperName.includes('北京')) flag = "🇨🇳";
+        else if (upperName.includes('美国') || upperName.includes('US')) flag = "🇺🇸";
+        else if (upperName.includes('德国') || upperName.includes('DE')) flag = "🇩🇪";
+        else if (upperName.includes('新加坡') || upperName.includes('SG')) flag = "🇸🇬";
+    }
+
+
+    // 2. Metrics (Normalize)
+    let cpu = 0, ram = 0, hdd = 0;
+    let netIn = 0, netOut = 0;
+    let totalIn = 0, totalOut = 0;
+    let uptime = 0;
+
+    // Use display metrics if calculated (with noise)
+    if (server._displayNetworkIn !== undefined) {
+        netIn = server._displayNetworkIn;
+        netOut = server._displayNetworkOut;
+    }
+
+    if (server.metrics) {
+        // [CASE 1] Metrics Object (Nested)
+        // Check if values are objects or numbers
         const m = server.metrics;
-        name = s.name || 'Unknown';
-        type = s.description || 'Nezha Node';
-        isOnline = !server.error;
-        cpu = m.cpu ? m.cpu.usage_percent : 0;
-        const memUsed = m.memory ? m.memory.used : 0;
-        const memTotal = m.memory ? m.memory.total : 1;
-        ram = memTotal > 0 ? (memUsed / memTotal) * 100 : 0;
-        const diskUsed = m.disk ? m.disk.used : 0;
-        const diskTotal = m.disk ? m.disk.total : 1;
-        hdd = diskTotal > 0 ? (diskUsed / diskTotal) * 100 : 0;
 
-        if (typeof server._displayNetworkIn !== 'undefined') {
-            netIn = server._displayNetworkIn;
-            netOut = server._displayNetworkOut;
-        } else {
-            netIn = (m.network ? m.network.download_speed : 0);
-            netOut = (m.network ? m.network.upload_speed : 0);
+        cpu = (typeof m.cpu === 'object') ? (Number(m.cpu.usage_percent) || 0) : (Number(m.cpu) || 0);
+        ram = (typeof m.memory === 'object') ? (Number(m.memory.usage_percent) || 0) : (Number(m.memory) || 0);
+        hdd = (typeof m.disk === 'object') ? (Number(m.disk.usage_percent) || 0) : (Number(m.disk) || 0);
+
+        // Totals
+        if (m.network) {
+            totalIn = Number(m.network.total_download) || Number(m.network.total_in) || 0;
+            totalOut = Number(m.network.total_upload) || Number(m.network.total_out) || 0;
         }
-        totalIn = m.network ? m.network.total_download : 0;
-        totalOut = m.network ? m.network.total_upload : 0;
-        uptime = m.uptime || 0;
+
+        // Uptime
+        uptime = Number(m.uptime) || 0;
+
+    } else if (server.State) {
+        // [CASE 2] Old/Direct Format
+        cpu = Number(server.State.CPU) || 0;
+        ram = Number(server.State.Mem_used_percent) || 0;
+        hdd = Number(server.State.Disk_used_percent) || 0;
+
+        uptime = Number(server.State.Uptime) || 0;
+        totalIn = Number(server.State.NetInTransfer) || 0;
+        totalOut = Number(server.State.NetOutTransfer) || 0;
+
+    }
+
+    // 3. Status Logic
+    // [FIX] Robust timestamp check
+    let lastActive = 0;
+    if (server.metrics && server.metrics.timestamp) lastActive = server.metrics.timestamp;
+    else if (server.LastActive) lastActive = server.LastActive;
+
+    // Auto-detect offline if data is stale (> 5 minutes)
+    const nowSec = Math.floor(Date.now() / 1000);
+    const isStale = (lastActive > 0) && ((nowSec - lastActive) > 300);
+
+    const isOnline = !server.error && !isStale;
+
+    // [FIX] Three-state logic: Online, Unknown (No Data), Offline (Error/Timeout)
+    let statusClass = 'offline';
+
+    if (server.metrics === null || server.metrics === undefined) {
+        statusClass = 'unknown'; // Explicitly No Data -> Gray
+    } else if (isOnline) {
+        statusClass = 'online'; // Valid Data -> Green
     } else {
-        // Flat Structure
-        name = server.name || server.Name || 'Unknown';
-        type = server.type || server.Tag || 'Unknown';
-        isOnline = server.online !== false;
-        const state = server.State || {};
-        cpu = server.cpu || state.CPU || 0;
-        const memUsed = server.memory_used || state.MemUsed || 0;
-        const memTotal = server.memory_total || state.MemTotal || 1;
-        ram = (memUsed / memTotal) * 100;
-        const hddUsed = server.hdd_used || state.DiskUsed || 0;
-        const hddTotal = server.hdd_total || state.DiskTotal || 1;
-        hdd = (hddUsed / hddTotal) * 100;
-
-        if (typeof server._displayNetworkIn !== 'undefined') {
-            netIn = server._displayNetworkIn;
-            netOut = server._displayNetworkOut;
-        } else {
-            netIn = (server.network_in || state.NetInSpeed || 0);
-            netOut = (server.network_out || state.NetOutSpeed || 0);
-        }
-        totalIn = server.transfer_in || state.TransferIn || 0;
-        totalOut = server.transfer_out || state.TransferOut || 0;
-        uptime = server.uptime || state.Uptime || 0;
+        statusClass = 'offline'; // Error or Stale -> Red
     }
 
-    const statusClass = isOnline ? 'online' : 'offline';
-    // Flags mapping (omitted for brevity, same as before)
-    const flags = {
-        'JP': '🇯🇵', 'US': '🇺🇸', 'HK': '🇭🇰', 'CN': '🇨🇳', 'SG': '🇸🇬', 'KR': '🇰🇷', 'DE': '🇩🇪', 'UK': '🇬🇧',
-        '日本': '🇯🇵', '美国': '🇺🇸', '香港': '🇭🇰', '中国': '🇨🇳', '新加坡': '🇸🇬', '韩国': '🇰🇷', '德国': '🇩🇪', '英国': '🇬🇧',
-        '台湾': '🇹🇼', 'TW': '🇹🇼'
-    };
-    let flag = '🏳️';
-    const searchString = (name + " " + type).toUpperCase();
-    for (const [key, value] of Object.entries(flags)) {
-        if (searchString.includes(key.toUpperCase())) {
-            flag = value;
-            break;
-        }
-    }
-
-    let daysRemaining = '∞';
-    const dateMatch = type.match(/(\d{4}-\d{2}-\d{2})/);
+    // Expiry Date Logic (from previous request: "高潮倒计时")
+    let daysRemaining = '---';
+    // Try description first, then name
+    const desc = basicInfo.description || name;
+    const dateMatch = desc.match(/(\d{4}-\d{1,2}-\d{1,2})/);
     if (dateMatch) {
         const targetDate = new Date(dateMatch[1]);
         const now = new Date();
@@ -380,8 +520,58 @@ function createServerCard(server) {
         daysRemaining = (Math.ceil(diffTime / (1000 * 60 * 60 * 24)) > 0) ? Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + '天' : '已过期';
     }
 
+    const lastActiveStr = lastActive > 0 ? new Date(lastActive * 1000).toLocaleTimeString() : '从未';
+
+    // [FEATURE] Return different HTML for Detail List View
+    if (isListView) {
+        return `
+        <div class="server-card ${statusClass}-card" title="最后更新: ${lastActiveStr}">
+            <div class="card-header">
+                <div class="server-info-left"><span class="flag-icon">${flag}</span><div><h3 class="server-name">${name}</h3></div></div>
+                <div class="status-dot ${statusClass}"></div>
+            </div>
+            
+            <div class="list-details">
+                <div class="list-item">
+                    <span class="list-value">${Math.round(cpu)}%</span>
+                    <span class="list-label">敏感度</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-value">${Math.round(ram)}%</span>
+                    <span class="list-label">扩张度</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-value">${Math.round(hdd)}%</span>
+                    <span class="list-label">填充度</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-value" style="color:#2196F3">↓${formatBytes(netIn)}/s</span>
+                    <span class="list-label">射入</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-value" style="color:#66ffb3">↑${formatBytes(netOut)}/s</span>
+                    <span class="list-label">喷水</span>
+                </div>
+                 <div class="list-item">
+                    <span class="list-value">${formatBytes(totalOut)}</span>
+                    <span class="list-label">总喷水</span>
+                </div>
+                <div class="list-item">
+                    <span class="list-value">${formatUptime(uptime)}</span>
+                    <span class="list-label">连续调教</span>
+                </div>
+                 <div class="list-item">
+                    <span class="list-value" style="color: ${daysRemaining === '已过期' ? 'red' : 'inherit'}">${daysRemaining}</span>
+                    <span class="list-label">倒计时</span>
+                </div>
+            </div>
+        </div>
+        `;
+    }
+
+    // Default Grid View
     return `
-        <div class="server-card ${statusClass}-card">
+        <div class="server-card ${statusClass}-card" title="最后更新: ${lastActiveStr}">
             <div class="card-header">
                 <div class="server-info-left"><span class="flag-icon">${flag}</span><div><h3 class="server-name">${name}</h3></div></div>
                 <div class="status-dot ${statusClass}"></div>
@@ -417,13 +607,13 @@ function formatBytes(bytes, decimals = 2) {
 }
 
 function formatUptime(seconds) {
-    if (!seconds) return '0s';
+    if (!seconds) return '0秒';
     const d = Math.floor(seconds / (3600 * 24));
     const h = Math.floor(seconds % (3600 * 24) / 3600);
     const m = Math.floor(seconds % 3600 / 60);
-    if (d > 0) return `${d}d ${h}h`;
-    if (h > 0) return `${h}h ${m}m`;
-    return `${m}m`;
+    if (d > 0) return `${d}天 ${h}小时`;
+    if (h > 0) return `${h}小时 ${m}分`;
+    return `${m}分`;
 }
 
 function initParticles() {
@@ -483,18 +673,19 @@ function calculateDisplayMetrics() {
         if (server.metrics && server.metrics.network) {
             netIn = Number(server.metrics.network.download_speed) || 0;
             netOut = Number(server.metrics.network.upload_speed) || 0;
+
+            // Only add noise if we actually have metrics (Online)
+            const noiseIn = Math.floor(Math.random() * 991) + 10;
+            const noiseOut = Math.floor(Math.random() * 991) + 10;
+            server._displayNetworkIn = netIn + noiseIn;
+            server._displayNetworkOut = netOut + noiseOut;
         } else {
             const state = server.State || server.status || {};
-            netIn = Number(server.network_in || state.NetInSpeed) || 0;
-            netOut = Number(server.network_out || state.NetOutSpeed) || 0;
+
+            // No metrics -> Force 0 (No noise for Unknown/Offline)
+            server._displayNetworkIn = 0;
+            server._displayNetworkOut = 0;
         }
-
-        // Noise
-        const noiseIn = Math.floor(Math.random() * 991) + 10;
-        const noiseOut = Math.floor(Math.random() * 991) + 10;
-
-        server._displayNetworkIn = netIn + noiseIn;
-        server._displayNetworkOut = netOut + noiseOut;
     });
 }
 
